@@ -80,25 +80,12 @@ export default function Navbar() {
       variants={navVariants}
       initial="hidden"
       animate="visible"
-      className="sticky top-0 z-50 bg-[#0a0a0f]/80 backdrop-blur-xl border-b border-white/[0.06]"
+      className="sticky top-0 z-50 bg-[#0a0a0f]/80 backdrop-blur-xl border-b border-white/[0.06] overflow-x-hidden"
     >
-      {/* Left-bottom white gradient glow */}
-      <motion.div
-        animate={{ opacity: [0.4, 0.7, 0.4], scale: [1, 1.05, 1] }}
-        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute bottom-0 left-0 w-48 h-24 bg-gradient-to-tr from-white/[0.06] via-white/[0.02] to-transparent pointer-events-none rounded-br-2xl"
-      />
-      {/* Right-bottom white gradient glow */}
-      <motion.div
-        animate={{ opacity: [0.4, 0.7, 0.4], scale: [1, 1.05, 1] }}
-        transition={{
-          duration: 6,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 3,
-        }}
-        className="absolute bottom-0 right-0 w-48 h-24 bg-gradient-to-tl from-white/[0.06] via-white/[0.02] to-transparent pointer-events-none rounded-bl-2xl"
-      />
+      {/* Left-bottom white gradient glow — static, no animation (prevents overflow) */}
+      <div className="absolute bottom-0 left-0 w-48 h-24 bg-gradient-to-tr from-white/[0.06] via-white/[0.02] to-transparent pointer-events-none rounded-br-2xl" />
+      {/* Right-bottom white gradient glow — static, no animation (prevents overflow) */}
+      <div className="absolute bottom-0 right-0 w-48 h-24 bg-gradient-to-tl from-white/[0.06] via-white/[0.02] to-transparent pointer-events-none rounded-bl-2xl" />
 
       <div className="relative max-w-7xl mx-auto px-5 sm:px-8 lg:px-10">
         <div className="flex items-center justify-between h-16 lg:h-[68px]">
