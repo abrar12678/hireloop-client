@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import { Card } from "@heroui/react";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import Person from "@gravity-ui/icons/Person";
 import Envelope from "@gravity-ui/icons/Envelope";
 import Lock from "@gravity-ui/icons/Lock";
 import Eye from "@gravity-ui/icons/Eye";
@@ -16,20 +15,6 @@ import { authClient } from "@/lib/auth-client";
 
 const inputBase =
   "w-full rounded-xl border border-white/[0.08] bg-[#141419] text-[14px] leading-5 text-white placeholder:text-[#6B7280] outline-none transition-colors focus:border-[#5C53FE]/50 focus:ring-1 focus:ring-[#5C53FE]/20";
-
-const inputStyle = {
-  paddingLeft: "2.5rem",
-  paddingRight: "1rem",
-  paddingTop: "0.75rem",
-  paddingBottom: "0.75rem",
-};
-
-const inputPwdStyle = {
-  paddingLeft: "2.5rem",
-  paddingRight: "2.5rem",
-  paddingTop: "0.75rem",
-  paddingBottom: "0.75rem",
-};
 
 const GoogleIcon = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -52,64 +37,10 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const PasswordField = ({
-  name,
-  placeholder,
-  label,
-  description,
-  isRequired,
-  validate,
-}) => {
-  const [visible, setVisible] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleChange = (e) => {
-    if (validate) {
-      const err = validate(e.target.value);
-      setError(err || "");
-    }
-  };
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-[13px] text-[#9CA3AF]">
-        {label}
-        {isRequired && " *"}
-      </label>
-      <div className="relative">
-        <Lock className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#6B7280]" />
-        <input
-          name={name}
-          type={visible ? "text" : "password"}
-          placeholder={placeholder}
-          required={isRequired}
-          onChange={handleChange}
-          className={inputBase}
-          style={inputPwdStyle}
-        />
-        <button
-          type="button"
-          onClick={() => setVisible(!visible)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B7280] hover:text-[#9CA3AF] transition-colors cursor-pointer"
-        >
-          {visible ? (
-            <EyeSlash className="w-[18px] h-[18px]" />
-          ) : (
-            <Eye className="w-[18px] h-[18px]" />
-          )}
-        </button>
-      </div>
-      {description && (
-        <p className="text-[12px] text-[#6B7280]">{description}</p>
-      )}
-      {error && <p className="text-[12px] text-red-400">{error}</p>}
-    </div>
-  );
-};
-
-const SignUpPage = () => {
+const SignInPage = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -118,27 +49,14 @@ const SignUpPage = () => {
     const formData = new FormData(e.currentTarget);
     const user = Object.fromEntries(formData.entries());
 
-    if (user.password !== user.confirmPassword) {
-      toast.error("Passwords do not match.", {
-        position: "top-center",
-        autoClose: 4000,
-        theme: "dark",
-        style: { background: "#1a1a2e", color: "#fff" },
-      });
-      setLoading(false);
-      return;
-    }
-
     try {
-      const { data, error: signUpError } = await authClient.signUp.email({
+      const { data, error: signInError } = await authClient.signIn.email({
         email: user.email,
         password: user.password,
-        name: user.name,
-        remember: true,
       });
 
       if (data) {
-        toast.success("Account created successfully!", {
+        toast.success("Signed in successfully!", {
           position: "top-center",
           autoClose: 2000,
           theme: "dark",
@@ -150,10 +68,10 @@ const SignUpPage = () => {
         }, 1200);
       }
 
-      if (signUpError) {
+      if (signInError) {
         toast.error(
-          signUpError.message ||
-            "Sign-up failed. Try a different email or check your password.",
+          signInError.message ||
+            "Sign-in failed. Check your email and password.",
           {
             position: "top-center",
             autoClose: 4000,
@@ -188,7 +106,7 @@ const SignUpPage = () => {
   };
 
   useEffect(() => {
-    document.title = "Sign Up | HireLoop";
+    document.title = "Sign In | HireLoop";
   }, []);
 
   return (
@@ -200,10 +118,10 @@ const SignUpPage = () => {
             <span className="text-lg sm:text-xl font-bold text-white">H</span>
           </div>
           <h1 className="text-xl sm:text-2xl font-bold text-white">
-            Create your account
+            Welcome back
           </h1>
           <p className="text-gray-400 text-xs sm:text-sm mt-1.5 sm:mt-2">
-            Join HireLoop and find your dream job today
+            Sign in to your HireLoop account
           </p>
         </div>
 
@@ -213,23 +131,7 @@ const SignUpPage = () => {
             onSubmit={onSubmit}
             className="flex flex-col gap-4 sm:gap-5 p-5 sm:p-8"
           >
-            {/* Full Name */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] text-[#9CA3AF]">Full Name *</label>
-              <div className="relative">
-                <Person className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#6B7280]" />
-                <input
-                  name="name"
-                  type="text"
-                  placeholder="Enter your full name"
-                  required
-                  className={inputBase}
-                  style={inputStyle}
-                />
-              </div>
-            </div>
-
-            {/* Email */}
+            {/* Email Field */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[13px] text-[#9CA3AF]">
                 Email Address *
@@ -242,61 +144,68 @@ const SignUpPage = () => {
                   placeholder="john@example.com"
                   required
                   className={inputBase}
-                  style={inputStyle}
+                  style={{
+                    paddingLeft: "2.5rem",
+                    paddingRight: "1rem",
+                    paddingTop: "0.75rem",
+                    paddingBottom: "0.75rem",
+                  }}
                 />
               </div>
             </div>
 
-            {/* Password */}
-            <PasswordField
-              name="password"
-              placeholder="Create a password"
-              label="Password"
-              isRequired
-              description="Must be at least 8 characters with 1 uppercase and 1 lowercase letter"
-              validate={(value) => {
-                if (value.length < 8)
-                  return "Password must be at least 8 characters";
-                if (!/[A-Z]/.test(value))
-                  return "Must contain at least one uppercase letter";
-                if (!/[a-z]/.test(value))
-                  return "Must contain at least one lowercase letter";
-                return null;
-              }}
-            />
-
-            {/* Confirm Password */}
-            <PasswordField
-              name="confirmPassword"
-              placeholder="Confirm your password"
-              label="Confirm Password"
-              isRequired
-            />
-
-            {/* Terms Checkbox */}
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                name="agreeTerms"
-                className="w-4 h-4 rounded border-white/[0.15] bg-[#141419] accent-[#5C53FE]"
-              />
-              <span className="text-[13px] text-[#9CA3AF]">
-                I agree to the{" "}
-                <Link
-                  href="#"
-                  className="text-[#5C53FE] transition-colors hover:text-[#8B5CF6]"
+            {/* Password Field */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[13px] text-[#9CA3AF]">Password *</label>
+              <div className="relative">
+                <Lock className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#6B7280]" />
+                <input
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  required
+                  className={inputBase}
+                  style={{
+                    paddingLeft: "2.5rem",
+                    paddingRight: "2.5rem",
+                    paddingTop: "0.75rem",
+                    paddingBottom: "0.75rem",
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B7280] hover:text-[#9CA3AF] transition-colors cursor-pointer"
                 >
-                  Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link
-                  href="#"
-                  className="text-[#5C53FE] transition-colors hover:text-[#8B5CF6]"
-                >
-                  Privacy Policy
-                </Link>
-              </span>
-            </label>
+                  {showPassword ? (
+                    <EyeSlash className="w-[18px] h-[18px]" />
+                  ) : (
+                    <Eye className="w-[18px] h-[18px]" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Remember me & Forgot password */}
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  name="remember"
+                  className="w-4 h-4 rounded border-white/[0.15] bg-[#141419] accent-[#5C53FE]"
+                />
+                <span className="text-[12px] sm:text-[13px] text-[#9CA3AF]">
+                  Remember me
+                </span>
+              </label>
+
+              <Link
+                href="/auth/forgot-password"
+                className="text-[12px] sm:text-[13px] font-medium text-[#5C53FE] transition-colors hover:text-[#8B5CF6] hover:underline underline-offset-2"
+              >
+                Forgot password?
+              </Link>
+            </div>
 
             {/* Submit Button */}
             <button
@@ -332,7 +241,7 @@ const SignUpPage = () => {
                 </svg>
               ) : (
                 <>
-                  Create account
+                  Sign in
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -361,14 +270,14 @@ const SignUpPage = () => {
             </button>
           </div>
 
-          {/* Login Link */}
+          {/* Sign Up Link */}
           <p className="text-center text-[12px] sm:text-[13px] text-[#6B7280] pb-5 sm:pb-6">
-            Already have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link
-              href="/auth/signIn"
+              href="/auth/signUp"
               className="font-medium text-[#5C53FE] transition-colors hover:text-[#8B5CF6] hover:underline underline-offset-2"
             >
-              Log in
+              Create account
             </Link>
           </p>
         </Card>
@@ -377,4 +286,4 @@ const SignUpPage = () => {
   );
 };
 
-export default SignUpPage;
+export default SignInPage;
