@@ -9,6 +9,7 @@ import { Button } from "@heroui/react";
 import { motion, AnimatePresence } from "motion/react";
 
 const NAV_LINKS = ["Browse Jobs", "Company", "Pricing"];
+const NAV_LINKS_URLS = ["/jobs", "/companies", "/pricing"];
 
 const navVariants = {
   hidden: { y: -80, opacity: 0 },
@@ -111,7 +112,7 @@ export default function Navbar() {
             {NAV_LINKS.map((link, i) => (
               <motion.a
                 key={link}
-                href="#"
+                href={NAV_LINKS_URLS[i]}
                 custom={i}
                 variants={linkVariants}
                 initial="hidden"
@@ -290,7 +291,7 @@ export default function Navbar() {
               {NAV_LINKS.map((link) => (
                 <motion.a
                   key={link}
-                  href="#"
+                  href={NAV_LINKS_URLS[NAV_LINKS.indexOf(link)]}
                   variants={mobileItemVariants}
                   onClick={() => setMobileOpen(false)}
                   whileHover={{
