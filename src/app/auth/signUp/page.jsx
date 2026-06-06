@@ -13,6 +13,7 @@ import Eye from "@gravity-ui/icons/Eye";
 import EyeSlash from "@gravity-ui/icons/EyeSlash";
 import ArrowRight from "@gravity-ui/icons/ArrowRight";
 import { authClient } from "@/lib/auth-client";
+import { Description, Label, Radio, RadioGroup } from "@heroui/react";
 
 const inputBase =
   "w-full rounded-xl border border-white/[0.08] bg-[#141419] text-[14px] leading-5 text-white placeholder:text-[#6B7280] outline-none transition-colors focus:border-[#5C53FE]/50 focus:ring-1 focus:ring-[#5C53FE]/20";
@@ -110,6 +111,7 @@ const PasswordField = ({
 const SignUpPage = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [role, setRole] = useState("seeker");
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -135,6 +137,7 @@ const SignUpPage = () => {
         password: user.password,
         name: user.name,
         remember: true,
+        role: user.role,
       });
 
       if (data) {
@@ -272,6 +275,34 @@ const SignUpPage = () => {
               label="Confirm Password"
               isRequired
             />
+
+            {/* Role Selection */}
+            <div className="flex flex-col gap-4">
+              <Label>Role</Label>
+              <RadioGroup
+                defaultValue="seeker"
+                name="role"
+                orientation="horizontal"
+                onValueChange={(value) => setRole(value)}
+              >
+                <Radio value="seeker">
+                  <Radio.Control>
+                    <Radio.Indicator />
+                  </Radio.Control>
+                  <Radio.Content>
+                    <Label>Job Seeker</Label>
+                  </Radio.Content>
+                </Radio>
+                <Radio value="Recruiter">
+                  <Radio.Control>
+                    <Radio.Indicator />
+                  </Radio.Control>
+                  <Radio.Content>
+                    <Label>Recruiter</Label>
+                  </Radio.Content>
+                </Radio>
+              </RadioGroup>
+            </div>
 
             {/* Terms Checkbox */}
             <label className="flex items-center gap-2 cursor-pointer select-none">
