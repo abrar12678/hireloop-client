@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card } from "@heroui/react";
 import { toast } from "react-toastify";
@@ -112,6 +112,8 @@ const SignUpPage = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState("seeker");
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/";
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -131,6 +133,8 @@ const SignUpPage = () => {
       return;
     }
 
+    const plan = role === "seeker" ? "seeker_free" : "recruiter_free";
+
     try {
       const { data, error: signUpError } = await authClient.signUp.email({
         email: user.email,
@@ -138,6 +142,7 @@ const SignUpPage = () => {
         name: user.name,
         remember: true,
         role: user.role,
+        plan: plan,
       });
 
       if (data) {
@@ -148,7 +153,7 @@ const SignUpPage = () => {
           style: { background: "#1a1a2e", color: "#fff" },
         });
         setTimeout(() => {
-          router.push("/");
+          router.push(redirectTo);
           router.refresh();
         }, 1200);
       }
@@ -396,7 +401,7 @@ const SignUpPage = () => {
           <p className="text-center text-[12px] sm:text-[13px] text-[#6B7280] pb-5 sm:pb-6">
             Already have an account?{" "}
             <Link
-              href="/auth/signIn"
+              href={`/auth/signIn?redirect=${redirectTo}`}
               className="font-medium text-[#5C53FE] transition-colors hover:text-[#8B5CF6] hover:underline underline-offset-2"
             >
               Log in

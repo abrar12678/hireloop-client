@@ -9,7 +9,7 @@ import { Button } from "@heroui/react";
 import { motion, AnimatePresence } from "motion/react";
 
 const NAV_LINKS = ["Browse Jobs", "Company", "Pricing"];
-const NAV_LINKS_URLS = ["/jobs", "/companies", "/pricing"];
+const NAV_LINKS_URLS = ["/jobs", "/companies", "/plans"];
 
 const navVariants = {
   hidden: { y: -80, opacity: 0 },
