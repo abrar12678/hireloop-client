@@ -8,8 +8,11 @@ import { useSession, signOut } from "@/lib/auth-client";
 import { Button } from "@heroui/react";
 import { motion, AnimatePresence } from "motion/react";
 
-const NAV_LINKS = ["Browse Jobs", "Company", "Pricing"];
-const NAV_LINKS_URLS = ["/jobs", "/companies", "/plans"];
+const NAV_LINKS = [
+  { label: "Browse Jobs", href: "/jobs" },
+  { label: "Company", href: "/companies" },
+  { label: "Pricing", href: "/plans" },
+];
 
 const navVariants = {
   hidden: { y: -80, opacity: 0 },
@@ -76,6 +79,24 @@ export default function Navbar() {
     await signOut();
   };
 
+  const dashboardLinks = {
+    seeker: "/dashboard/seeker",
+    recruiter: "/dashboard/recruiter",
+    admin: "/dashboard/admin",
+  };
+
+  const navLinks = [
+    ...NAV_LINKS,
+    ...(user?.email
+      ? [
+          {
+            label: "Dashboard",
+            href: dashboardLinks[user?.role || "seeker"],
+          },
+        ]
+      : []),
+  ];
+
   return (
     <motion.nav
       variants={navVariants}
@@ -109,10 +130,10 @@ export default function Navbar() {
 
           {/* Desktop Nav Links + Auth Buttons */}
           <div className="hidden py-2 px-4 md:flex items-center gap-7">
-            {NAV_LINKS.map((link, i) => (
+            {navLinks.map((link, i) => (
               <motion.a
-                key={link}
-                href={NAV_LINKS_URLS[i]}
+                key={link.label}
+                href={link.href}
                 custom={i}
                 variants={linkVariants}
                 initial="hidden"
@@ -122,7 +143,7 @@ export default function Navbar() {
                 transition={{ type: "spring", stiffness: 400, damping: 25 }}
                 className="relative text-[#CCCCCC] text-[14px] font-medium cursor-pointer py-1"
               >
-                {link}
+                {link.label}
                 <motion.span
                   className="absolute -bottom-0.5 left-0 h-[2px] bg-[#8B5CF6]"
                   initial={{ width: 0 }}
@@ -288,10 +309,10 @@ export default function Navbar() {
             className="md:hidden overflow-hidden bg-[#0a0a0f] border-t border-white/[0.06]"
           >
             <div className="px-5 pt-3 pb-5 space-y-1">
-              {NAV_LINKS.map((link) => (
+              {navLinks.map((link) => (
                 <motion.a
-                  key={link}
-                  href={NAV_LINKS_URLS[NAV_LINKS.indexOf(link)]}
+                  key={link.label}
+                  href={link.href}
                   variants={mobileItemVariants}
                   onClick={() => setMobileOpen(false)}
                   whileHover={{
@@ -301,7 +322,7 @@ export default function Navbar() {
                   whileTap={{ scale: 0.98 }}
                   className="block text-[#CCCCCC] hover:text-white text-[15px] font-medium px-3 py-3 rounded-lg transition-colors cursor-pointer"
                 >
-                  {link}
+                  {link.label}
                 </motion.a>
               ))}
 

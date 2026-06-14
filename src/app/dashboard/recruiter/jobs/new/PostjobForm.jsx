@@ -115,361 +115,367 @@ export default function PostJobForm({ company }) {
             Posting as:{" "}
             <span className="font-semibold text-zinc-300">{company.name}</span>
             <span className="text-emerald-500 font-medium bg-emerald-950/30 px-1.5 py-0.5 rounded border border-emerald-900/50">
-              Approved
+              {company.status}
             </span>
           </div>
         </div>
 
+        {company.status !== "Approved" && (
+          <div>Please wait to get approval</div>
+        )}
+
         {/* Hero UI Main Form Handler */}
-        <Form
-          onSubmit={handleSubmit}
-          className="space-y-8"
-          validationErrors={errors}
-          validationBehavior="aria"
-        >
-          {/* SECTION 1: Job Information */}
-          <Fieldset className="space-y-6 w-full">
-            <legend className="text-lg font-medium text-zinc-300 border-b border-zinc-900 w-full pb-2 mb-2">
-              Job Information
-            </legend>
+        {company.status === "Approved" && (
+          <Form
+            onSubmit={handleSubmit}
+            className="space-y-8"
+            validationErrors={errors}
+            validationBehavior="aria"
+          >
+            {/* SECTION 1: Job Information */}
+            <Fieldset className="space-y-6 w-full">
+              <legend className="text-lg font-medium text-zinc-300 border-b border-zinc-900 w-full pb-2 mb-2">
+                Job Information
+              </legend>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <TextField
-                name="jobTitle"
-                isInvalid={!!errors.jobTitle}
-                className="flex flex-col gap-1 w-full"
-              >
-                <Label className="text-zinc-400 font-medium text-sm">
-                  Job Title
-                </Label>
-                <Input
-                  placeholder="e.g. Senior Frontend Engineer"
-                  className={textInputClass}
-                />
-                {errors.jobTitle && (
-                  <FieldError className="text-xs text-danger mt-1">
-                    {errors.jobTitle}
-                  </FieldError>
-                )}
-              </TextField>
-
-              <Select
-                className={selectBoxClass}
-                name="jobCategory"
-                isInvalid={!!errors.jobCategory}
-              >
-                <Label className="text-zinc-400 font-medium text-sm mb-1 block">
-                  Job Category
-                </Label>
-                <Select.Trigger className={triggerClasses}>
-                  <Select.Value className="text-white placeholder:text-zinc-600" />
-                  <Select.Indicator />
-                </Select.Trigger>
-                {errors.jobCategory && (
-                  <span className="text-xs text-danger mt-1">
-                    {errors.jobCategory}
-                  </span>
-                )}
-                <Select.Popover className={popoverClasses}>
-                  <ListBox className="outline-none">
-                    <ListBox.Item
-                      id="technology"
-                      className={listItemClasses}
-                      textValue="Technology"
-                    >
-                      Technology
-                    </ListBox.Item>
-                    <ListBox.Item
-                      id="design"
-                      className={listItemClasses}
-                      textValue="Design"
-                    >
-                      Design
-                    </ListBox.Item>
-                    <ListBox.Item
-                      id="marketing"
-                      className={listItemClasses}
-                      textValue="Marketing"
-                    >
-                      Marketing
-                    </ListBox.Item>
-                    <ListBox.Item
-                      id="sales"
-                      className={listItemClasses}
-                      textValue="Sales"
-                    >
-                      Sales
-                    </ListBox.Item>
-                  </ListBox>
-                </Select.Popover>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Select
-                className={selectBoxClass}
-                name="jobType"
-                isInvalid={!!errors.jobType}
-              >
-                <Label className="text-zinc-400 font-medium text-sm mb-1 block">
-                  Job Type
-                </Label>
-                <Select.Trigger className={triggerClasses}>
-                  <Select.Value />
-                  <Select.Indicator />
-                </Select.Trigger>
-                {errors.jobType && (
-                  <span className="text-xs text-danger mt-1">
-                    {errors.jobType}
-                  </span>
-                )}
-                <Select.Popover className={popoverClasses}>
-                  <ListBox className="outline-none">
-                    <ListBox.Item
-                      id="full-time"
-                      className={listItemClasses}
-                      textValue="Full-time"
-                    >
-                      Full-time
-                    </ListBox.Item>
-                    <ListBox.Item
-                      id="part-time"
-                      className={listItemClasses}
-                      textValue="Part-time"
-                    >
-                      Part-time
-                    </ListBox.Item>
-                    <ListBox.Item
-                      id="contract"
-                      className={listItemClasses}
-                      textValue="Contract"
-                    >
-                      Contract
-                    </ListBox.Item>
-                    <ListBox.Item
-                      id="internship"
-                      className={listItemClasses}
-                      textValue="Internship"
-                    >
-                      Internship
-                    </ListBox.Item>
-                  </ListBox>
-                </Select.Popover>
-              </Select>
-
-              {/* Inline layout grouping for Salary and Currency mapping */}
-              <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-2 space-y-1">
-                  <span className="text-zinc-400 font-medium text-sm block">
-                    Salary Range
-                  </span>
-                  <div className="flex gap-2">
-                    <TextField
-                      name="minSalary"
-                      isInvalid={!!errors.minSalary}
-                      className="w-full"
-                    >
-                      <Input
-                        placeholder="Min"
-                        type="number"
-                        className={textInputClass}
-                      />
-                    </TextField>
-                    <TextField
-                      name="maxSalary"
-                      isInvalid={!!errors.maxSalary}
-                      className="w-full"
-                    >
-                      <Input
-                        placeholder="Max"
-                        type="number"
-                        className={textInputClass}
-                      />
-                    </TextField>
-                  </div>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <TextField
+                  name="jobTitle"
+                  isInvalid={!!errors.jobTitle}
+                  className="flex flex-col gap-1 w-full"
+                >
+                  <Label className="text-zinc-400 font-medium text-sm">
+                    Job Title
+                  </Label>
+                  <Input
+                    placeholder="e.g. Senior Frontend Engineer"
+                    className={textInputClass}
+                  />
+                  {errors.jobTitle && (
+                    <FieldError className="text-xs text-danger mt-1">
+                      {errors.jobTitle}
+                    </FieldError>
+                  )}
+                </TextField>
 
                 <Select
-                  className="w-full mt-6"
-                  name="currency"
-                  defaultSelectedKeys={["USD"]}
+                  className={selectBoxClass}
+                  name="jobCategory"
+                  isInvalid={!!errors.jobCategory}
                 >
+                  <Label className="text-zinc-400 font-medium text-sm mb-1 block">
+                    Job Category
+                  </Label>
                   <Select.Trigger className={triggerClasses}>
-                    <Select.Value />
+                    <Select.Value className="text-white placeholder:text-zinc-600" />
                     <Select.Indicator />
                   </Select.Trigger>
+                  {errors.jobCategory && (
+                    <span className="text-xs text-danger mt-1">
+                      {errors.jobCategory}
+                    </span>
+                  )}
                   <Select.Popover className={popoverClasses}>
                     <ListBox className="outline-none">
                       <ListBox.Item
-                        id="USD"
+                        id="technology"
                         className={listItemClasses}
-                        textValue="USD"
+                        textValue="Technology"
                       >
-                        USD ($)
+                        Technology
                       </ListBox.Item>
                       <ListBox.Item
-                        id="EUR"
+                        id="design"
                         className={listItemClasses}
-                        textValue="EUR"
+                        textValue="Design"
                       >
-                        EUR (€)
+                        Design
                       </ListBox.Item>
                       <ListBox.Item
-                        id="GBP"
+                        id="marketing"
                         className={listItemClasses}
-                        textValue="GBP"
+                        textValue="Marketing"
                       >
-                        GBP (£)
+                        Marketing
+                      </ListBox.Item>
+                      <ListBox.Item
+                        id="sales"
+                        className={listItemClasses}
+                        textValue="Sales"
+                      >
+                        Sales
                       </ListBox.Item>
                     </ListBox>
                   </Select.Popover>
                 </Select>
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-zinc-400 font-medium text-sm">
-                    Location
-                  </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Select
+                  className={selectBoxClass}
+                  name="jobType"
+                  isInvalid={!!errors.jobType}
+                >
+                  <Label className="text-zinc-400 font-medium text-sm mb-1 block">
+                    Job Type
+                  </Label>
+                  <Select.Trigger className={triggerClasses}>
+                    <Select.Value />
+                    <Select.Indicator />
+                  </Select.Trigger>
+                  {errors.jobType && (
+                    <span className="text-xs text-danger mt-1">
+                      {errors.jobType}
+                    </span>
+                  )}
+                  <Select.Popover className={popoverClasses}>
+                    <ListBox className="outline-none">
+                      <ListBox.Item
+                        id="full-time"
+                        className={listItemClasses}
+                        textValue="Full-time"
+                      >
+                        Full-time
+                      </ListBox.Item>
+                      <ListBox.Item
+                        id="part-time"
+                        className={listItemClasses}
+                        textValue="Part-time"
+                      >
+                        Part-time
+                      </ListBox.Item>
+                      <ListBox.Item
+                        id="contract"
+                        className={listItemClasses}
+                        textValue="Contract"
+                      >
+                        Contract
+                      </ListBox.Item>
+                      <ListBox.Item
+                        id="internship"
+                        className={listItemClasses}
+                        textValue="Internship"
+                      >
+                        Internship
+                      </ListBox.Item>
+                    </ListBox>
+                  </Select.Popover>
+                </Select>
 
-                  {/* Updated Switch using v3 Compound Component Syntax */}
-                  <Switch
-                    isSelected={isRemote}
-                    onChange={setIsRemote}
-                    size="sm"
+                {/* Inline layout grouping for Salary and Currency mapping */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="col-span-2 space-y-1">
+                    <span className="text-zinc-400 font-medium text-sm block">
+                      Salary Range
+                    </span>
+                    <div className="flex gap-2">
+                      <TextField
+                        name="minSalary"
+                        isInvalid={!!errors.minSalary}
+                        className="w-full"
+                      >
+                        <Input
+                          placeholder="Min"
+                          type="number"
+                          className={textInputClass}
+                        />
+                      </TextField>
+                      <TextField
+                        name="maxSalary"
+                        isInvalid={!!errors.maxSalary}
+                        className="w-full"
+                      >
+                        <Input
+                          placeholder="Max"
+                          type="number"
+                          className={textInputClass}
+                        />
+                      </TextField>
+                    </div>
+                  </div>
+
+                  <Select
+                    className="w-full mt-6"
+                    name="currency"
+                    defaultSelectedKeys={["USD"]}
                   >
-                    <Switch.Control className="bg-zinc-800 data-[selected=true]:bg-white">
-                      <Switch.Thumb className="bg-zinc-400 data-[selected=true]:bg-black" />
-                    </Switch.Control>
-                    <Switch.Content>
-                      <Label className="text-xs text-zinc-400 font-medium">
-                        Remote
-                      </Label>
-                    </Switch.Content>
-                  </Switch>
+                    <Select.Trigger className={triggerClasses}>
+                      <Select.Value />
+                      <Select.Indicator />
+                    </Select.Trigger>
+                    <Select.Popover className={popoverClasses}>
+                      <ListBox className="outline-none">
+                        <ListBox.Item
+                          id="USD"
+                          className={listItemClasses}
+                          textValue="USD"
+                        >
+                          USD ($)
+                        </ListBox.Item>
+                        <ListBox.Item
+                          id="EUR"
+                          className={listItemClasses}
+                          textValue="EUR"
+                        >
+                          EUR (€)
+                        </ListBox.Item>
+                        <ListBox.Item
+                          id="GBP"
+                          className={listItemClasses}
+                          textValue="GBP"
+                        >
+                          GBP (£)
+                        </ListBox.Item>
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-zinc-400 font-medium text-sm">
+                      Location
+                    </span>
+
+                    {/* Updated Switch using v3 Compound Component Syntax */}
+                    <Switch
+                      isSelected={isRemote}
+                      onChange={setIsRemote}
+                      size="sm"
+                    >
+                      <Switch.Control className="bg-zinc-800 data-[selected=true]:bg-white">
+                        <Switch.Thumb className="bg-zinc-400 data-[selected=true]:bg-black" />
+                      </Switch.Control>
+                      <Switch.Content>
+                        <Label className="text-xs text-zinc-400 font-medium">
+                          Remote
+                        </Label>
+                      </Switch.Content>
+                    </Switch>
+                  </div>
+
+                  <TextField
+                    name="location"
+                    isInvalid={!isRemote && !!errors.location}
+                    className="flex flex-col gap-1 w-full relative"
+                  >
+                    <div className="relative flex items-center">
+                      <Globe
+                        size={16}
+                        className="absolute left-3 text-zinc-600 pointer-events-none z-10"
+                      />
+                      <Input
+                        placeholder={
+                          isRemote ? "Global / Remote" : "e.g. Austin, TX"
+                        }
+                        disabled={isRemote}
+                        className={`${textInputClass} pl-10`}
+                      />
+                    </div>
+                    {!isRemote && errors.location && (
+                      <FieldError className="text-xs text-danger mt-1">
+                        {errors.location}
+                      </FieldError>
+                    )}
+                  </TextField>
                 </div>
 
                 <TextField
-                  name="location"
-                  isInvalid={!isRemote && !!errors.location}
-                  className="flex flex-col gap-1 w-full relative"
+                  name="deadline"
+                  isInvalid={!!errors.deadline}
+                  className="flex flex-col gap-1 w-full"
                 >
-                  <div className="relative flex items-center">
-                    <Globe
-                      size={16}
-                      className="absolute left-3 text-zinc-600 pointer-events-none z-10"
-                    />
-                    <Input
-                      placeholder={
-                        isRemote ? "Global / Remote" : "e.g. Austin, TX"
-                      }
-                      disabled={isRemote}
-                      className={`${textInputClass} pl-10`}
-                    />
-                  </div>
-                  {!isRemote && errors.location && (
+                  <Label className="text-zinc-400 font-medium text-sm">
+                    Application Deadline
+                  </Label>
+                  <Input type="date" className={textInputClass} />
+                  {errors.deadline && (
                     <FieldError className="text-xs text-danger mt-1">
-                      {errors.location}
+                      {errors.deadline}
                     </FieldError>
                   )}
                 </TextField>
               </div>
+            </Fieldset>
+
+            {/* SECTION 2: Job Description */}
+            <Fieldset className="space-y-6 w-full">
+              <legend className="text-lg font-medium text-zinc-300 border-b border-zinc-900 w-full pb-2 mb-2">
+                Job Details & Description
+              </legend>
 
               <TextField
-                name="deadline"
-                isInvalid={!!errors.deadline}
+                name="responsibilities"
+                isInvalid={!!errors.responsibilities}
                 className="flex flex-col gap-1 w-full"
               >
                 <Label className="text-zinc-400 font-medium text-sm">
-                  Application Deadline
+                  Responsibilities
                 </Label>
-                <Input type="date" className={textInputClass} />
-                {errors.deadline && (
+                <TextArea
+                  placeholder="Outline the core everyday responsibilities for this role..."
+                  rows={4}
+                  className={textAreaClass}
+                />
+                {errors.responsibilities && (
                   <FieldError className="text-xs text-danger mt-1">
-                    {errors.deadline}
+                    {errors.responsibilities}
                   </FieldError>
                 )}
               </TextField>
+
+              <TextField
+                name="requirements"
+                isInvalid={!!errors.requirements}
+                className="flex flex-col gap-1 w-full"
+              >
+                <Label className="text-zinc-400 font-medium text-sm">
+                  Requirements
+                </Label>
+                <TextArea
+                  placeholder="List required experience, skills, and certifications..."
+                  rows={4}
+                  className={textAreaClass}
+                />
+                {errors.requirements && (
+                  <FieldError className="text-xs text-danger mt-1">
+                    {errors.requirements}
+                  </FieldError>
+                )}
+              </TextField>
+
+              <TextField name="benefits" className="flex flex-col gap-1 w-full">
+                <Label className="text-zinc-400 font-medium text-sm">
+                  Benefits (Optional)
+                </Label>
+                <TextArea
+                  placeholder="Perks, healthcare, equity, remote stipends..."
+                  rows={3}
+                  className={textAreaClass}
+                />
+              </TextField>
+            </Fieldset>
+
+            {/* Form Actions */}
+            <div className="flex justify-end gap-3 pt-4 border-t border-zinc-800 w-full">
+              <Button
+                type="button"
+                variant="bordered"
+                className="border-zinc-800 text-zinc-300 hover:bg-zinc-900 rounded-lg px-6 font-medium h-11"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="bg-white text-black font-semibold hover:bg-zinc-200 rounded-lg px-6 transition-colors h-11"
+              >
+                Post Job
+              </Button>
             </div>
-          </Fieldset>
-
-          {/* SECTION 2: Job Description */}
-          <Fieldset className="space-y-6 w-full">
-            <legend className="text-lg font-medium text-zinc-300 border-b border-zinc-900 w-full pb-2 mb-2">
-              Job Details & Description
-            </legend>
-
-            <TextField
-              name="responsibilities"
-              isInvalid={!!errors.responsibilities}
-              className="flex flex-col gap-1 w-full"
-            >
-              <Label className="text-zinc-400 font-medium text-sm">
-                Responsibilities
-              </Label>
-              <TextArea
-                placeholder="Outline the core everyday responsibilities for this role..."
-                rows={4}
-                className={textAreaClass}
-              />
-              {errors.responsibilities && (
-                <FieldError className="text-xs text-danger mt-1">
-                  {errors.responsibilities}
-                </FieldError>
-              )}
-            </TextField>
-
-            <TextField
-              name="requirements"
-              isInvalid={!!errors.requirements}
-              className="flex flex-col gap-1 w-full"
-            >
-              <Label className="text-zinc-400 font-medium text-sm">
-                Requirements
-              </Label>
-              <TextArea
-                placeholder="List required experience, skills, and certifications..."
-                rows={4}
-                className={textAreaClass}
-              />
-              {errors.requirements && (
-                <FieldError className="text-xs text-danger mt-1">
-                  {errors.requirements}
-                </FieldError>
-              )}
-            </TextField>
-
-            <TextField name="benefits" className="flex flex-col gap-1 w-full">
-              <Label className="text-zinc-400 font-medium text-sm">
-                Benefits (Optional)
-              </Label>
-              <TextArea
-                placeholder="Perks, healthcare, equity, remote stipends..."
-                rows={3}
-                className={textAreaClass}
-              />
-            </TextField>
-          </Fieldset>
-
-          {/* Form Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-zinc-800 w-full">
-            <Button
-              type="button"
-              variant="bordered"
-              className="border-zinc-800 text-zinc-300 hover:bg-zinc-900 rounded-lg px-6 font-medium h-11"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              className="bg-white text-black font-semibold hover:bg-zinc-200 rounded-lg px-6 transition-colors h-11"
-            >
-              Post Job
-            </Button>
-          </div>
-        </Form>
+          </Form>
+        )}
       </div>
     </div>
   );

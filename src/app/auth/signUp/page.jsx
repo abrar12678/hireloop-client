@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card } from "@heroui/react";
 import { toast } from "react-toastify";
@@ -112,8 +112,16 @@ const SignUpPage = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState("seeker");
-  const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") || "/";
+  const [redirectTo, setRedirectTo] = useState("/");
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      setRedirectTo(params.get("redirect") || "/");
+    } catch (e) {
+      setRedirectTo("/");
+    }
+  }, []);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -298,7 +306,7 @@ const SignUpPage = () => {
                     <Label>Job Seeker</Label>
                   </Radio.Content>
                 </Radio>
-                <Radio value="Recruiter">
+                <Radio value="recruiter">
                   <Radio.Control>
                     <Radio.Indicator />
                   </Radio.Control>
