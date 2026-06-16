@@ -85,7 +85,6 @@ export default function Testimonials() {
       ref={sectionRef}
       className="relative bg-[#121212] py-16 sm:py-20 lg:py-24 overflow-hidden"
     >
-      {/* Subtle ambient purple glows — static, no animation on blur */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-[#8B5CF6]/[0.04] rounded-full blur-[120px]" />
         <div className="absolute bottom-1/4 right-1/4 w-[350px] h-[350px] bg-[#8B5CF6]/[0.03] rounded-full blur-[100px]" />
@@ -99,10 +98,10 @@ export default function Testimonials() {
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           >
-            <p className="inline-flex items-center gap-3 text-[13px] sm:text-[14px] font-medium tracking-[0.15em] uppercase mb-5">
-              <span className="inline-block w-1.5 h-1.5 bg-[#8B5CF6] rounded-full" />
-              Features Job
-              <span className="inline-block w-1.5 h-1.5 bg-[#8B5CF6] rounded-full" />
+            <p className="inline-flex items-center gap-2.5 font-[family-name:var(--font-space-mono)] text-xs font-semibold tracking-[0.25em] uppercase text-white/80 mb-4">
+              <span className="inline-block w-[7px] h-[7px] bg-[#2563eb] rounded-sm" />
+              Features Jobs
+              <span className="inline-block w-[7px] h-[7px] bg-[#2563eb] rounded-sm" />
             </p>
           </motion.div>
 
@@ -114,9 +113,11 @@ export default function Testimonials() {
               delay: 0.06,
               ease: [0.22, 1, 0.36, 1],
             }}
-            className="text-3xl sm:text-4xl lg:text-[48px] font-bold text-white leading-[1.2]"
+            className="font-[family-name:var(--font-manrope)] text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight leading-[1.1] text-white mb-10"
           >
-            Everything you need to succeed
+            Everything you need
+            <br />
+            to succeed
           </motion.h2>
         </div>
 
@@ -137,9 +138,8 @@ export default function Testimonials() {
                   borderColor: `${feature.accent}33`,
                   transition: { type: "tween", duration: 0.2 },
                 }}
-                className="group rounded-xl p-5 border border-transparent flex flex-row gap-4 items-start cursor-default"
+                className="group rounded-xl p-5 border border-transparent flex flex-row gap-4 items-start cursor-default relative"
               >
-                {/* Icon Container */}
                 <motion.div
                   className="w-12 h-12 rounded-xl bg-gradient-to-b from-[#010102] to-[#313131] flex items-center justify-center flex-shrink-0"
                   style={{
@@ -155,7 +155,6 @@ export default function Testimonials() {
                   <Icon className="w-5 h-5 text-[#F7C2FF]" />
                 </motion.div>
 
-                {/* Text Content */}
                 <div className="min-w-0">
                   <h3 className="text-white text-[17px] sm:text-[18px] font-semibold mb-1.5 leading-snug transition-colors">
                     {feature.title}
@@ -165,7 +164,6 @@ export default function Testimonials() {
                   </p>
                 </div>
 
-                {/* Subtle bottom accent on hover */}
                 <motion.div
                   className="absolute bottom-0 left-4 right-4 h-[1px] rounded-full"
                   style={{ backgroundColor: feature.accent }}

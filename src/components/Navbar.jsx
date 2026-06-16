@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "@/lib/auth-client";
 import { Button } from "@heroui/react";
 import { motion, AnimatePresence } from "motion/react";
+import Image from "next/image";
 
 const NAV_LINKS = [
   { label: "Browse Jobs", href: "/jobs" },
@@ -14,66 +14,22 @@ const NAV_LINKS = [
   { label: "Pricing", href: "/plans" },
 ];
 
-const navVariants = {
-  hidden: { y: -80, opacity: 0 },
-  visible: {
-    y: 0,
-    opacity: 1,
-    transition: { type: "spring", stiffness: 260, damping: 26, delay: 0.1 },
-  },
-};
-
-const linkVariants = {
-  hidden: { opacity: 0, y: -10 },
-  visible: (i) => ({
-    opacity: 1,
-    y: 0,
-    transition: { delay: 0.15 + i * 0.06, duration: 0.35, ease: "easeOut" },
-  }),
-};
-
-const mobileMenuVariants = {
-  closed: { height: 0, opacity: 0 },
-  open: {
-    height: "auto",
-    opacity: 1,
-    transition: {
-      height: { duration: 0.35, ease: [0.4, 0, 0.2, 1] },
-      opacity: { duration: 0.25, delay: 0.05 },
-      staggerChildren: 0.05,
-      delayChildren: 0.1,
-    },
-  },
-  exit: {
-    height: 0,
-    opacity: 0,
-    transition: {
-      height: { duration: 0.25, ease: [0.4, 0, 1, 1] },
-      opacity: { duration: 0.15 },
-    },
-  },
-};
-
-const mobileItemVariants = {
-  closed: { opacity: 0, x: -12 },
-  open: {
-    opacity: 1,
-    x: 0,
-    transition: { duration: 0.3, ease: "easeOut" },
-  },
-};
-
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const { data: session, isPending, refetch } = useSession();
   const pathname = usePathname();
-
   const user = session?.user;
 
-  // Refetch session on every route change
   useEffect(() => {
     refetch();
   }, [pathname, refetch]);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();
@@ -98,69 +54,50 @@ export default function Navbar() {
   ];
 
   return (
-    <motion.nav
-      variants={navVariants}
-      initial="hidden"
-      animate="visible"
-      className="sticky top-0 z-50 bg-[#0a0a0f]/80 backdrop-blur-xl border-b border-white/[0.06] overflow-x-hidden"
+    <motion.header
+      initial={{ y: -80, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ type: "spring", stiffness: 260, damping: 26, delay: 0.1 }}
+      className="fixed top-0 left-0 right-0 z-50 flex justify-center px-4 sm:px-6 pt-4"
     >
-      {/* Left-bottom white gradient glow — static, no animation (prevents overflow) */}
-      <div className="absolute bottom-0 left-0 w-48 h-24 bg-gradient-to-tr from-white/[0.06] via-white/[0.02] to-transparent pointer-events-none rounded-br-2xl" />
-      {/* Right-bottom white gradient glow — static, no animation (prevents overflow) */}
-      <div className="absolute bottom-0 right-0 w-48 h-24 bg-gradient-to-tl from-white/[0.06] via-white/[0.02] to-transparent pointer-events-none rounded-bl-2xl" />
-
-      <div className="relative max-w-7xl mx-auto px-5 sm:px-8 lg:px-10">
-        <div className="flex items-center justify-between h-16 lg:h-[68px]">
+      <div
+        className={`w-full max-w-5xl rounded-[18px] transition-all duration-300 border ${
+          scrolled
+            ? "bg-white/[0.06] backdrop-blur-[20px] shadow-lg shadow-black/20 border-white/[0.12]"
+            : "bg-white/[0.03] backdrop-blur-[16px] border-white/[0.08]"
+        }`}
+      >
+        <div className="flex items-center justify-between h-16 px-5 sm:px-6">
           {/* Logo */}
-          <motion.div
-            className="flex-shrink-0"
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.97 }}
-            transition={{ type: "spring", stiffness: 400, damping: 17 }}
-          >
-            <Image
-              src="/images/logo.png"
-              alt="HireLoop"
-              width={150}
-              height={36}
-              className="object-contain"
-              priority
-            />
-          </motion.div>
+          <Image
+            src="/images/logo.png"
+            alt="logo-icon"
+            width={120}
+            height={50}
+          />
 
-          {/* Desktop Nav Links + Auth Buttons */}
-          <div className="hidden py-2 px-4 md:flex items-center gap-7">
+          {/* Desktop Nav Links */}
+          <div className="hidden md:flex items-center gap-7">
             {navLinks.map((link, i) => (
-              <motion.a
+              <motion.div
                 key={link.label}
-                href={link.href}
-                custom={i}
-                variants={linkVariants}
-                initial="hidden"
-                animate="visible"
-                whileHover={{ y: -2, color: "#ffffff" }}
-                whileTap={{ y: 0 }}
-                transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                className="relative text-[#CCCCCC] text-[14px] font-medium cursor-pointer py-1"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 + i * 0.06, duration: 0.35 }}
               >
-                {link.label}
-                <motion.span
-                  className="absolute -bottom-0.5 left-0 h-[2px] bg-[#8B5CF6]"
-                  initial={{ width: 0 }}
-                  whileHover={{ width: "100%" }}
-                  transition={{ duration: 0.25, ease: "easeOut" }}
-                />
-              </motion.a>
+                <Link
+                  href={link.href}
+                  className="relative text-[#CCCCCC] text-[14px] font-medium hover:text-white transition-colors duration-200 py-1"
+                >
+                  {link.label}
+                  <span className="absolute -bottom-0.5 left-0 h-[2px] bg-[#6B63FF] w-0 hover:w-full transition-all duration-250" />
+                </Link>
+              </motion.div>
             ))}
+          </div>
 
-            {/* Vertical Divider */}
-            <motion.div
-              initial={{ opacity: 0, scaleY: 0 }}
-              animate={{ opacity: 1, scaleY: 1 }}
-              transition={{ delay: 0.35, duration: 0.3 }}
-              className="w-px h-5 bg-white/20 origin-center"
-            />
-
+          {/* Desktop Auth Buttons */}
+          <div className="hidden md:flex items-center gap-4">
             {user ? (
               <motion.div
                 className="flex items-center gap-3"
@@ -168,20 +105,12 @@ export default function Navbar() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4, duration: 0.3 }}
               >
-                <motion.span
-                  className="text-[#CCCCCC] text-[14px] font-medium"
-                  whileHover={{ color: "#ffffff" }}
-                >
+                <span className="text-[#CCCCCC] text-[14px] font-medium">
                   Welcome, {user.name}
-                </motion.span>
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Button variant="ghost" size="sm" onClick={handleSignOut}>
-                    Sign Out
-                  </Button>
-                </motion.div>
+                </span>
+                <Button variant="ghost" size="sm" onClick={handleSignOut}>
+                  Sign Out
+                </Button>
               </motion.div>
             ) : (
               <>
@@ -190,20 +119,13 @@ export default function Navbar() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.4, duration: 0.3 }}
                 >
-                  <motion.div
-                    whileHover={{ scale: 1.06 }}
-                    whileTap={{ scale: 0.95 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                  <Link
+                    href="/auth/signIn"
+                    className="text-[#665CFF] text-[14px] font-medium hover:text-[#7B73FF] transition-colors duration-200"
                   >
-                    <Link
-                      href="/auth/signIn"
-                      className="text-[#5C53FE] text-[14px] font-medium transition-colors duration-200"
-                    >
-                      Sign In
-                    </Link>
-                  </motion.div>
+                    Sign In
+                  </Link>
                 </motion.div>
-
                 <motion.div
                   initial={{ opacity: 0, y: -8, scale: 0.9 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -216,25 +138,16 @@ export default function Navbar() {
                   }}
                 >
                   <motion.div
-                    className="relative overflow-hidden rounded-md"
                     whileHover={{
                       scale: 1.04,
-                      boxShadow: "0 0 20px rgba(139, 92, 246, 0.3)",
+                      boxShadow: "0 0 24px rgba(107,99,255,0.35)",
                     }}
                     whileTap={{ scale: 0.97 }}
                     transition={{ type: "spring", stiffness: 400, damping: 20 }}
                   >
-                    {/* Shimmer / shine sweep */}
-                    <motion.span
-                      className="absolute top-0 -left-full w-1/2 h-full bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg] pointer-events-none z-10"
-                      whileHover={{
-                        left: "150%",
-                      }}
-                      transition={{ duration: 0.6, ease: "easeInOut" }}
-                    />
                     <Link
                       href="/auth/signUp"
-                      className="block bg-white text-black font-medium text-[14px] px-5 py-2 rounded-md transition-all duration-200 cursor-pointer"
+                      className="block bg-gradient-to-r from-[#6B63FF] to-[#5A54F5] text-white font-medium text-[14px] px-5 py-2 rounded-lg hover:shadow-lg hover:shadow-[#6B63FF]/25 transition-all duration-200"
                     >
                       Get Started
                     </Link>
@@ -244,14 +157,10 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Mobile Hamburger */}
-          <motion.button
+          {/* Mobile Menu Button */}
+          <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="md:hidden inline-flex items-center justify-center p-2 rounded-lg text-[#CCCCCC] hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
-            aria-label="Toggle menu"
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            transition={{ type: "spring", stiffness: 400, damping: 20 }}
+            className="md:hidden p-2 text-[#CCCCCC] hover:text-white transition-colors cursor-pointer"
           >
             <AnimatePresence mode="wait">
               {mobileOpen ? (
@@ -294,84 +203,68 @@ export default function Navbar() {
                 </motion.svg>
               )}
             </AnimatePresence>
-          </motion.button>
+          </button>
         </div>
-      </div>
 
-      {/* Mobile Menu */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <motion.div
-            variants={mobileMenuVariants}
-            initial="closed"
-            animate="open"
-            exit="exit"
-            className="md:hidden overflow-hidden bg-[#0a0a0f] border-t border-white/[0.06]"
-          >
-            <div className="px-5 pt-3 pb-5 space-y-1">
-              {navLinks.map((link) => (
-                <motion.a
-                  key={link.label}
-                  href={link.href}
-                  variants={mobileItemVariants}
-                  onClick={() => setMobileOpen(false)}
-                  whileHover={{
-                    x: 4,
-                    backgroundColor: "rgba(255,255,255,0.05)",
-                  }}
-                  whileTap={{ scale: 0.98 }}
-                  className="block text-[#CCCCCC] hover:text-white text-[15px] font-medium px-3 py-3 rounded-lg transition-colors cursor-pointer"
-                >
-                  {link.label}
-                </motion.a>
-              ))}
+        {/* Mobile Menu */}
+        <AnimatePresence>
+          {mobileOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{
+                height: { duration: 0.35, ease: [0.4, 0, 0.2, 1] },
+                opacity: { duration: 0.25, delay: 0.05 },
+              }}
+              className="md:hidden overflow-hidden border-t border-white/[0.06]"
+            >
+              <div className="px-5 pt-3 pb-5 space-y-1">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.label}
+                    href={link.href}
+                    onClick={() => setMobileOpen(false)}
+                    className="block text-[#CCCCCC] hover:text-white text-[15px] font-medium px-3 py-3 rounded-lg hover:bg-white/[0.05] transition-colors cursor-pointer"
+                  >
+                    {link.label}
+                  </Link>
+                ))}
 
-              <motion.div
-                variants={mobileItemVariants}
-                className="border-t border-white/[0.06] my-2"
-              />
+                <div className="border-t border-white/[0.06] my-2" />
 
-              {user ? (
-                <motion.div
-                  variants={mobileItemVariants}
-                  className="flex items-center gap-3 px-3 py-3"
-                >
-                  <span className="text-[#CCCCCC] text-[14px] font-medium">
-                    Welcome, {user.name}
-                  </span>
-                  <Button variant="ghost" size="sm" onClick={handleSignOut}>
-                    Sign Out
-                  </Button>
-                </motion.div>
-              ) : (
-                <motion.div variants={mobileItemVariants} className="space-y-1">
-                  <motion.div whileTap={{ scale: 0.97 }}>
+                {user ? (
+                  <div className="flex items-center gap-3 px-3 py-3">
+                    <span className="text-[#CCCCCC] text-[14px] font-medium">
+                      Welcome, {user.name}
+                    </span>
+                    <Button variant="ghost" size="sm" onClick={handleSignOut}>
+                      Sign Out
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2 px-3 pt-1">
                     <Link
                       href="/auth/signIn"
                       onClick={() => setMobileOpen(false)}
-                      className="block text-[#5C53FE] text-[15px] font-medium px-3 py-3 rounded-lg transition-colors"
+                      className="block text-[#665CFF] text-[15px] font-medium py-3 text-center border border-[#665CFF]/30 rounded-lg hover:bg-[#665CFF]/10 transition-colors"
                     >
                       Sign In
                     </Link>
-                  </motion.div>
-                  <motion.div
-                    whileTap={{ scale: 0.97 }}
-                    whileHover={{ scale: 1.02 }}
-                  >
                     <Link
                       href="/auth/signUp"
                       onClick={() => setMobileOpen(false)}
-                      className="block w-full bg-white text-black font-medium text-[15px] px-6 py-3 rounded-md text-center transition-all"
+                      className="block bg-gradient-to-r from-[#6B63FF] to-[#5A54F5] text-white font-medium text-[15px] px-6 py-3 rounded-lg text-center"
                     >
                       Get Started
                     </Link>
-                  </motion.div>
-                </motion.div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.nav>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.header>
   );
 }

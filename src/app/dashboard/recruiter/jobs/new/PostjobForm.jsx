@@ -55,7 +55,6 @@ export default function PostJobForm({ company }) {
       newErrors.responsibilities = "Responsibilities are required";
     if (!data.requirements)
       newErrors.requirements = "Requirements are required";
-    console.log("Validation errors:", newErrors);
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;

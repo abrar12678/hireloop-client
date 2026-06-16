@@ -11,17 +11,17 @@ export default async function Page({ searchParams }) {
   const querySearch = new URLSearchParams(filters);
   const queryString = querySearch.toString();
 
-  console.log("search Q", filters, queryString);
-
   // Fetched server-side on the initial request
   const { jobs, total } = await getJobs(queryString);
 
   return (
-    <div className="w-full min-h-screen bg-zinc-950 p-6 md:p-12 text-white">
-      <div className="max-w-7xl mx-auto mb-10">
-        <h1 className="text-4xl font-bold tracking-tight">Open Positions</h1>
-        <p className="text-zinc-400 mt-2">
-          Discover your next engineering challenge.
+    <div className="w-full min-h-screen bg-[#0a0a0f] p-6 md:p-12 text-white">
+      <div className="max-w-7xl mx-auto mb-8">
+        <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+          Browse Jobs
+        </h1>
+        <p className="text-zinc-500 mt-2">
+          Find your next opportunity from {total?.toLocaleString() || "thousands of"} open positions.
         </p>
       </div>
 

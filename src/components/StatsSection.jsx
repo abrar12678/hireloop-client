@@ -202,11 +202,8 @@ export default function StatsSection() {
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-white mb-4 leading-tight"
           >
-            Assisting over{" "}
-            <span className="bg-gradient-to-r from-[#6200EE] to-[#8B5CF6] bg-clip-text text-transparent">
-              15,000+
-            </span>{" "}
-            job seekers find their dream positions.
+            Assisting over <span className="text-[#665FFC]">15,000+</span> job
+            seekers find their dream positions.
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 16 }}

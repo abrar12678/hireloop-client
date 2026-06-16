@@ -1,120 +1,159 @@
-import React from "react";
-import { Card, Button, Link } from "@heroui/react";
-import { MapPin, Briefcase, CircleDollar, ArrowRight } from "@gravity-ui/icons";
+"use client";
+
+import React, { useState } from "react";
+import { motion } from "motion/react";
+import { MapPin, CircleDollar, Bookmark } from "@gravity-ui/icons";
+
+const JOB_TYPE_STYLES = {
+  "full-time": "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
+  contract: "bg-zinc-500/15 text-zinc-400 border-zinc-500/20",
+  "part-time": "bg-zinc-500/15 text-zinc-400 border-zinc-500/20",
+  freelance: "bg-zinc-500/15 text-zinc-400 border-zinc-500/20",
+};
+
+function CompanyAvatar({ name, logo }) {
+  if (logo) {
+    return (
+      <img
+        src={logo}
+        alt={`${name} logo`}
+        className="w-[50px] h-[50px] rounded-lg object-cover flex-shrink-0"
+      />
+    );
+  }
+
+  const initial = (name || "C").charAt(0).toUpperCase();
+
+  return (
+    <div className="w-[50px] h-[50px] rounded-lg bg-[#2A2A2A] border border-zinc-700/50 flex items-center justify-center flex-shrink-0">
+      <span className="text-white font-semibold text-lg">{initial}</span>
+    </div>
+  );
+}
 
 export default function JobCard({ job }) {
-  // Guard clause in case the prop isn't passed or is loading
+  const [isBookmarked, setIsBookmarked] = useState(false);
+
   if (!job) return null;
 
-  // Format salary string safely (e.g., "160000" becomes "160k")
   const formatSalary = (amount) => {
     if (!amount) return "0";
     const numericAmount = parseInt(amount, 10);
-    return numericAmount >= 1000 ? `${numericAmount / 1000}k` : amount;
+    return numericAmount >= 1000
+      ? `$${numericAmount / 1000}k`
+      : `$${numericAmount}`;
   };
 
   const salaryRange =
     job.minSalary && job.maxSalary
-      ? `$${formatSalary(job.minSalary)}–$${formatSalary(job.maxSalary)} / year`
-      : "Salary Negociable";
+      ? `${formatSalary(job.minSalary)} – ${formatSalary(job.maxSalary)} / yr`
+      : job.minSalary
+        ? `${formatSalary(job.minSalary)} / yr`
+        : "Negotiable";
 
-  // Safely extract the ID string depending on your MongoDB data hydration setup
   const jobId = job._id?.$oid || job._id;
 
+  const isHot = job.isFeatured || job.isHot;
+  const isSenior =
+    job.jobTitle?.toLowerCase().includes("senior") ||
+    job.jobTitle?.toLowerCase().includes("lead") ||
+    job.jobTitle?.toLowerCase().includes("principal") ||
+    job.jobTitle?.toLowerCase().includes("staff");
+
   return (
-    <Card className="p-6 w-full max-w-[440px] border-none bg-zinc-900 text-zinc-100 rounded-[32px] shadow-2xl">
-      {/* Card Header: Company Info & Job Title */}
-      <Card.Header className="flex flex-col items-start gap-4 p-0 pb-3">
-        <div className="flex items-center gap-3">
-          {job.companyLogo && (
-            <img
-              src={job.companyLogo}
-              alt={`${job.companyName || "Company"} logo`}
-              className="w-8 h-8 object-contain rounded-md"
-            />
-          )}
-          <span className="text-lg font-medium text-zinc-300">
-            {job.companyName || "Confidential"}
-          </span>
-        </div>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="group bg-[#1E1E1E] hover:bg-[#252525] border border-zinc-800/50 hover:border-zinc-700/50 rounded-xl p-5 transition-colors duration-200"
+    >
+      <div className="flex items-start gap-4">
+        {/* Company Avatar */}
+        <CompanyAvatar name={job.companyName} logo={job.companyLogo} />
 
-        <Card.Title className="text-3xl font-semibold tracking-tight text-white leading-tight">
-          {job.jobTitle}
-        </Card.Title>
+        {/* Main Content */}
+        <div className="flex-1 min-w-0">
+          {/* Title Row */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="text-base font-bold text-white truncate group-hover:text-purple-300 transition-colors">
+                {job.jobTitle}
+              </h3>
+              <p className="text-sm text-[#CCCCCC] mt-0.5 truncate">
+                {job.companyName || "Confidential"}
+              </p>
+            </div>
 
-        {job.responsibilities && (
-          <Card.Description className="text-base text-zinc-400 line-clamp-2">
-            {job.responsibilities}
-          </Card.Description>
-        )}
-      </Card.Header>
+            {/* Bookmark */}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsBookmarked(!isBookmarked);
+              }}
+              className="flex-shrink-0 p-1.5 rounded-lg hover:bg-zinc-700/40 transition-colors mt-0.5"
+              aria-label={isBookmarked ? "Remove bookmark" : "Bookmark job"}
+            >
+              {isBookmarked ? (
+                <Bookmark className="w-5 h-5 text-purple-400 fill-purple-400" />
+              ) : (
+                <Bookmark className="w-5 h-5 text-zinc-500 hover:text-zinc-300 transition-colors" />
+              )}
+            </button>
+          </div>
 
-      {/* Card Content: Badges/Tags & Technical Details */}
-      <Card.Content className="flex flex-col gap-5 p-0 py-4">
-        {/* Badge Grid matching your reference layout */}
-        <div className="flex flex-wrap gap-2">
-          {/* Location Tag */}
-          {job.location && (
-            <div className="flex items-center gap-2 bg-zinc-800/60 px-4 py-2 rounded-full border border-zinc-800">
-              <MapPin className="text-purple-400 w-4 h-4" />
-              <span className="text-sm font-medium text-zinc-200">
-                {job.location} {job.isRemote && "(Remote)"}
+          {/* Location & Salary */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2.5">
+            {job.location && (
+              <span className="flex items-center gap-1.5 text-sm text-[#888888]">
+                <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="truncate">
+                  {job.location}
+                  {job.isRemote && " · Remote"}
+                </span>
               </span>
-            </div>
-          )}
-
-          {/* Job Type Tag */}
-          {job.jobType && (
-            <div className="flex items-center gap-2 bg-zinc-800/60 px-4 py-2 rounded-full border border-zinc-800">
-              <Briefcase className="text-purple-400 w-4 h-4" />
-              <span className="text-sm font-medium text-zinc-200 capitalize">
-                {job.jobType}
-              </span>
-            </div>
-          )}
-
-          {/* Salary Tag */}
-          <div className="flex items-center gap-2 bg-zinc-800/60 px-4 py-2 rounded-full border border-zinc-800 w-fit">
-            <div className="flex justify-center items-center bg-purple-500/20 rounded-full w-5 h-5">
-              <CircleDollar className="text-purple-400 w-3 h-3" />
-            </div>
-            <span className="text-sm font-medium text-zinc-200">
-              {salaryRange}
+            )}
+            <span className="flex items-center gap-1.5 text-sm text-[#888888]">
+              <CircleDollar className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>{salaryRange}</span>
             </span>
           </div>
-        </div>
 
-        {/* Supplemental info strings */}
-        {(job.requirements || job.benefits) && (
-          <div className="text-xs text-zinc-500 space-y-1 border-t border-zinc-800/60 pt-3">
-            {job.requirements && (
-              <p>
-                <strong className="text-zinc-400">Requirements:</strong>{" "}
-                {job.requirements}
-              </p>
+          {/* Badges Row */}
+          <div className="flex flex-wrap items-center gap-2 mt-3">
+            {job.jobType && (
+              <span
+                className={`inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-md border capitalize ${
+                  JOB_TYPE_STYLES[job.jobType] ||
+                  "bg-zinc-500/15 text-zinc-400 border-zinc-500/20"
+                }`}
+              >
+                {job.jobType.replace("-", " ")}
+              </span>
             )}
-            {job.benefits && (
-              <p>
-                <strong className="text-zinc-400">Benefits:</strong>{" "}
-                {job.benefits}
-              </p>
+            {isSenior && (
+              <span className="inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-md bg-purple-500/15 text-purple-400 border border-purple-500/20">
+                Senior
+              </span>
+            )}
+            {isHot && (
+              <span className="inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-md bg-orange-500/15 text-orange-400 border border-orange-500/20">
+                🔥 Hot Job
+              </span>
             )}
           </div>
-        )}
-      </Card.Content>
+        </div>
 
-      {/* Card Footer: Action Button */}
-      <Card.Footer className="p-0 pt-4">
-        <Link
-          href={`/jobs/${jobId}`}
-          className="group flex justify-start items-center gap-2 bg-transparent hover:bg-zinc-800/40 p-0 text-base font-medium text-white transition-all duration-200"
-          variant="light"
-          disableRipple
-        >
-          Apply Now
-          <ArrowRight className="group-hover:translate-x-1 text-zinc-400 group-hover:text-white w-4 h-4 transition-transform duration-200" />
-        </Link>
-      </Card.Footer>
-    </Card>
+        {/* Easy Apply Button */}
+        <div className="flex-shrink-0 flex items-center self-center">
+          <a
+            href={`/jobs/${jobId}`}
+            className="inline-flex items-center gap-1.5 bg-[#10B981] hover:bg-emerald-600 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors duration-200 whitespace-nowrap"
+          >
+            Easy Apply
+          </a>
+        </div>
+      </div>
+    </motion.div>
   );
 }

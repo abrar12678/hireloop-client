@@ -8,12 +8,16 @@ const db = client.db(process.env.DB_NAME);
 
 export const auth = betterAuth({
   database: mongodbAdapter(db, {
-    // Optional: if you don't provide a client, database transactions won't be enabled.
     client,
   }),
   emailAndPassword: {
     enabled: true,
   },
+  // Allow requests from both localhost AND Vercel
+  trustedOrigins: [
+    "http://localhost:3000",
+    "https://hireloop-client-self.vercel.app",
+  ],
   user: {
     additionalFields: {
       role: {

@@ -1,27 +1,35 @@
 import React from "react";
-import { Card } from "@heroui/react";
 
-export const StatCard = ({ title, value, icon: Icon, className = "" }) => {
+const borderColors = [
+  "border-t-[#00D4AA]",
+  "border-t-[#6366F1]",
+  "border-t-[#F59E0B]",
+  "border-t-[#10B981]",
+];
+
+export const StatCard = ({ title, value, icon: Icon, index = 0, className = "" }) => {
+  const borderColor = borderColors[index % borderColors.length];
+
   return (
-    <Card
-      className={`bg-[#18181b] border border-neutral-800 rounded-2xl p-2 ${className}`}
+    <div
+      className={`bg-[#18181b] border border-zinc-800/60 rounded-2xl p-5 border-t-2 ${borderColor} ${className}`}
     >
-      <Card.Content className="flex flex-col gap-6 justify-between p-4">
-        {/* Icon Wrapper */}
-        {Icon && (
-          <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-neutral-800 text-neutral-300">
-            <Icon width={20} height={20} />
-          </div>
-        )}
-
+      <div className="flex flex-col gap-4">
         {/* Content */}
-        <div className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-neutral-400">{title}</span>
-          <span className="text-3xl font-semibold text-white tracking-tight">
+        <div className="flex flex-col gap-1.5">
+          <span className="text-3xl font-bold text-white tracking-tight">
             {value}
           </span>
+          <span className="text-sm font-medium text-zinc-400">{title}</span>
         </div>
-      </Card.Content>
-    </Card>
+
+        {/* Icon */}
+        {Icon && (
+          <div className="w-9 h-9 flex items-center justify-center rounded-lg bg-white/[0.05] text-zinc-400 mt-1">
+            <Icon width={18} height={18} />
+          </div>
+        )}
+      </div>
+    </div>
   );
 };

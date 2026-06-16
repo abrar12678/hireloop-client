@@ -1,66 +1,69 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { ArrowRight } from "lucide-react";
-import CrownDiamond from "@gravity-ui/icons/CrownDiamond";
-import ChartMixed from "@gravity-ui/icons/ChartMixed";
-import Thunderbolt from "@gravity-ui/icons/Thunderbolt";
-import { motion, useInView, AnimatePresence } from "motion/react";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Crown, BarChart3, Zap, ArrowRight } from "lucide-react";
+import { motion, useInView } from "motion/react";
 
-const PLANS = [
+const SEEKER_PLANS = [
   {
-    name: "Starter",
-    icon: CrownDiamond,
-    monthlyPrice: 0,
-    yearlyPrice: 0,
-    subheading: "Start building your insights hub:",
+    name: "Free",
+    id: "seeker_free",
+    icon: "crown",
+    monthlyPrice: "$0",
+    period: "/forever",
+    description: "Essential features for getting started",
     features: [
-      "Daily AI match brief (top 5)",
-      "Verified salary bands",
-      "Company insight dashboards",
-      "1-click apply, unlimited",
+      "Browse & save up to 10 jobs",
+      "Apply to up to 3 jobs per month",
+      "Basic profile page",
+      "Standard email alerts",
     ],
-    highlighted: false,
-    accent: "#8B5CF6",
+    popular: false,
   },
   {
-    name: "Growth",
-    icon: ChartMixed,
-    monthlyPrice: 17,
-    yearlyPrice: 13,
-    subheading: "Start building your insights hub:",
+    name: "Pro",
+    id: "seeker_pro",
+    icon: "barChart",
+    monthlyPrice: "$19.99",
+    period: "/month",
+    description: "Accelerate your job search",
     features: [
-      "Daily AI match brief (top 5)",
-      "Verified salary bands",
-      "Company insight dashboards",
-      "1-click apply, unlimited",
+      "Apply to up to 30 jobs per month",
+      "Unlimited saved jobs",
+      "Advanced application tracking dashboard",
+      "Comprehensive salary insights",
     ],
-    highlighted: true,
-    accent: "#F7C2FF",
+    popular: true,
   },
   {
     name: "Premium",
-    icon: Thunderbolt,
-    monthlyPrice: 99,
-    yearlyPrice: 74,
-    subheading: "Start building your insights hub:",
+    id: "seeker_premium",
+    icon: "zap",
+    monthlyPrice: "$39.99",
+    period: "/month",
+    description: "Uncapped potential for elite talent",
     features: [
-      "Everything in Pro",
-      "Multi-profile career portfolios",
-      "Shared talent rooms",
-      "Recruiter view (read-only)",
+      "Everything in Pro + Unlimited apps",
+      "Profile boost to recruiter feeds",
+      "Early access to new jobs",
+      "24/7 Priority support",
     ],
-    highlighted: false,
-    accent: "#6366F1",
+    popular: false,
   },
 ];
 
+const ICON_MAP = {
+  crown: Crown,
+  barChart: BarChart3,
+  zap: Zap,
+};
+
 const cardVariants = {
-  hidden: { opacity: 0, y: 40, scale: 0.96 },
+  hidden: { opacity: 0, y: 40 },
   visible: (i) => ({
     opacity: 1,
     y: 0,
-    scale: 1,
     transition: {
       delay: 0.15 + i * 0.1,
       duration: 0.6,
@@ -69,83 +72,41 @@ const cardVariants = {
   }),
 };
 
-const featureVariants = {
-  hidden: { opacity: 0, x: -10 },
-  visible: (i) => ({
-    opacity: 1,
-    x: 0,
-    transition: {
-      delay: 0.4 + i * 0.06,
-      duration: 0.4,
-      ease: [0.22, 1, 0.36, 1],
-    },
-  }),
-};
-
-function AnimatedPrice({ value, isInView }) {
-  return (
-    <AnimatePresence mode="wait">
-      <motion.span
-        key={value}
-        initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
-        animate={isInView ? { opacity: 1, y: 0, filter: "blur(0px)" } : {}}
-        exit={{ opacity: 0, y: -12, filter: "blur(4px)" }}
-        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className="text-white text-[40px] font-bold leading-none"
-      >
-        ${value}
-      </motion.span>
-    </AnimatePresence>
-  );
+function getYearlyPrice(monthlyPriceStr) {
+  const num = parseFloat(monthlyPriceStr.replace("$", ""));
+  if (num === 0) return "$0";
+  const yearlyTotal = num * 12 * 0.75;
+  return `$${yearlyTotal.toFixed(2)}`;
 }
 
-export default function CTASection() {
-  const [isYearly, setIsYearly] = useState(true);
+export default function Pricing() {
+  const router = useRouter();
+  const [billingCycle, setBillingCycle] = useState("monthly");
   const sectionRef = useRef(null);
   const isInView = useInView(sectionRef, { once: true, margin: "-80px" });
 
   return (
     <section
       ref={sectionRef}
-      className="relative bg-[#000000] py-16 sm:py-20 lg:py-24 overflow-hidden"
+      className="relative bg-black py-20 sm:py-24 lg:py-28 overflow-hidden"
     >
-      {/* Purple ambient glow — static */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-[#8B5CF6]/[0.04] rounded-full blur-[120px]" />
-      </div>
-
-      <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-8 lg:px-10">
-        {/* Section Header */}
-        <div className="text-center mb-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="text-center flex flex-col items-center">
+          {/* Kicker */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           >
-            <p className="inline-flex items-center gap-3 text-[13px] sm:text-[14px] font-medium tracking-[0.15em] uppercase mb-5">
-              <motion.span
-                className="inline-block w-1.5 h-1.5 bg-[#8B5CF6] rounded-full"
-                animate={{ scale: [1, 1.3, 1] }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-              />
+            <p className="inline-flex items-center gap-2.5 font-[family-name:var(--font-space-mono)] text-xs font-semibold tracking-[0.25em] uppercase text-white/80 mb-4">
+              <span className="inline-block w-[7px] h-[7px] bg-[#2563eb] rounded-sm" />
               Pricing
-              <motion.span
-                className="inline-block w-1.5 h-1.5 bg-[#8B5CF6] rounded-full"
-                animate={{ scale: [1, 1.3, 1] }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: 1,
-                }}
-              />
+              <span className="inline-block w-[7px] h-[7px] bg-[#2563eb] rounded-sm" />
             </p>
           </motion.div>
 
+          {/* Heading */}
           <motion.h2
             initial={{ opacity: 0, y: 16 }}
             animate={isInView ? { opacity: 1, y: 0 } : {}}
@@ -154,187 +115,178 @@ export default function CTASection() {
               delay: 0.06,
               ease: [0.22, 1, 0.36, 1],
             }}
-            className="text-2xl sm:text-3xl lg:text-[36px] font-bold text-white leading-[1.2] mb-8"
+            className="font-[family-name:var(--font-manrope)] text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight leading-[1.1] text-white mb-10"
           >
-            Pay for the leverage, not the listings
+            Pay for the leverage,
+            <br />
+            not the listings
           </motion.h2>
 
-          {/* Monthly / Yearly Toggle */}
+          {/* Billing Toggle */}
           <motion.div
-            className="inline-flex items-center bg-[#1F2937] rounded-full p-1"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={isInView ? { opacity: 1, scale: 1 } : {}}
+            initial={{ opacity: 0, y: 12 }}
+            animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{
               duration: 0.5,
               delay: 0.12,
               ease: [0.22, 1, 0.36, 1],
             }}
+            className="mb-16"
           >
-            <motion.button
-              onClick={() => setIsYearly(false)}
-              className={`relative px-5 py-2 rounded-full text-[14px] font-medium cursor-pointer ${
-                !isYearly
-                  ? "bg-white text-black shadow-lg shadow-purple-500/20"
-                  : "text-[#9CA3AF] hover:text-white"
-              }`}
-              whileTap={{ scale: 0.96 }}
-            >
-              Monthly
-            </motion.button>
-            <motion.button
-              onClick={() => setIsYearly(true)}
-              className={`relative px-5 py-2 rounded-full text-[14px] font-medium cursor-pointer ${
-                isYearly
-                  ? "bg-white text-black shadow-lg shadow-purple-500/20"
-                  : "text-[#9CA3AF] hover:text-white"
-              }`}
-              whileTap={{ scale: 0.96 }}
-            >
-              Yearly
-              <span className="absolute -top-1.5 -right-2.5 bg-white text-black text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                25%
-              </span>
-            </motion.button>
+            <div className="relative inline-grid grid-cols-2 bg-[#161617] rounded-full p-1 w-[260px]">
+              <button
+                onClick={() => setBillingCycle("monthly")}
+                className="relative z-10 flex items-center justify-center py-2 rounded-full text-sm font-medium transition-colors duration-200"
+              >
+                <span
+                  className={
+                    billingCycle === "monthly" ? "text-black" : "text-slate-400"
+                  }
+                >
+                  Monthly
+                </span>
+              </button>
+              <button
+                onClick={() => setBillingCycle("yearly")}
+                className="relative z-10 flex items-center justify-center gap-1.5 py-2 rounded-full text-sm font-medium transition-colors duration-200"
+              >
+                <span
+                  className={
+                    billingCycle === "yearly" ? "text-black" : "text-slate-400"
+                  }
+                >
+                  Yearly
+                </span>
+                <span className="bg-[#d946ef] text-white text-[10px] font-bold rounded-full px-2 py-0.5">
+                  25%
+                </span>
+              </button>
+              <motion.div
+                layoutId="pricing-toggle"
+                className="absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] bg-white rounded-full"
+                animate={{
+                  x: billingCycle === "monthly" ? 0 : "100%",
+                }}
+                transition={{
+                  type: "spring",
+                  stiffness: 500,
+                  damping: 35,
+                }}
+              />
+            </div>
           </motion.div>
         </div>
 
-        {/* Pricing Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-7">
-          {PLANS.map((plan, i) => {
-            const price = isYearly ? plan.yearlyPrice : plan.monthlyPrice;
-            const Icon = plan.icon;
+        {/* Pricing Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {SEEKER_PLANS.map((plan, i) => {
+            const Icon = ICON_MAP[plan.icon];
+            const isPopular = plan.popular;
+            const isFree = plan.monthlyPrice === "$0";
+
+            const displayPrice =
+              billingCycle === "monthly"
+                ? plan.monthlyPrice
+                : getYearlyPrice(plan.monthlyPrice);
+
+            const displayPeriod =
+              billingCycle === "yearly" && !isFree ? "/year" : plan.period;
 
             return (
               <motion.div
-                key={plan.name}
+                key={plan.id}
                 custom={i}
                 variants={cardVariants}
                 initial="hidden"
                 animate={isInView ? "visible" : "hidden"}
-                whileHover={{
-                  y: -8,
-                  transition: { type: "tween", duration: 0.2 },
-                }}
-                className={`relative rounded-xl p-7 lg:p-8 ${
-                  plan.highlighted
-                    ? "bg-[#595959]/20 border border-[#595959]/20"
-                    : "bg-[#000000] border border-white/[0.08]"
+                className={`group rounded-2xl p-8 flex flex-col justify-between h-full transition-all duration-300 ${
+                  isPopular
+                    ? "bg-[#151516] border border-white/20 hover:-translate-y-1"
+                    : "bg-black border border-[#F6EFE1]/20 hover:-translate-y-1"
                 }`}
               >
-                {/* Hover glow for highlighted card */}
-                {plan.highlighted && (
-                  <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-400 pointer-events-none bg-gradient-to-b from-[#8B5CF6]/5 to-transparent" />
-                )}
-
-                {/* Popular badge for highlighted */}
-                {plan.highlighted && (
-                  <motion.div
-                    className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#6200EE] to-[#8B5CF6] text-white text-[11px] font-bold px-4 py-1 rounded-full tracking-wide uppercase"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={isInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{
-                      delay: 0.35,
-                      duration: 0.4,
-                      ease: [0.22, 1, 0.36, 1],
-                    }}
-                  >
-                    Most Popular
-                  </motion.div>
-                )}
-
-                {/* Plan Icon + Name */}
-                <div className="mb-6">
-                  <motion.div
-                    className="border border-white/[0.08] bg-gradient-to-b from-[#010102] to-[#313131] rounded-xl p-4 inline-flex"
-                    whileHover={{
-                      scale: 1.08,
-                      borderColor: `${plan.accent}40`,
-                      transition: {
-                        type: "spring",
-                        stiffness: 400,
-                        damping: 18,
-                      },
-                    }}
-                  >
-                    <Icon className="w-6 h-6 text-[#F7C2FF]" />
-                  </motion.div>
-                  <h3 className="text-white mt-3 text-[18px] font-medium">
-                    {plan.name}
-                  </h3>
-                </div>
-
-                {/* Price */}
-                <div className="flex items-end justify-end mb-2">
-                  <AnimatedPrice value={price} isInView={isInView} />
-                  <span className="text-[#9CA3AF] text-[14px] ml-1.5 mb-1">
-                    /month
-                  </span>
-                </div>
-
-                {/* Subheading */}
-                <p className="text-[#9CA3AF] text-[14px] font-medium mb-6">
-                  {plan.subheading}
-                </p>
-
-                {/* Feature List */}
-                <div className="space-y-3 mb-7">
-                  {plan.features.map((feature, fi) => (
-                    <motion.div
-                      key={feature}
-                      custom={fi}
-                      variants={featureVariants}
-                      initial="hidden"
-                      animate={isInView ? "visible" : "hidden"}
-                      className="flex items-start gap-2.5"
-                    >
-                      <motion.span
-                        className="text-[#8B5CF6] text-[16px] leading-none mt-px flex-shrink-0"
-                        initial={{ scale: 0.5, opacity: 0 }}
-                        animate={isInView ? { scale: 1, opacity: 1 } : {}}
-                        transition={{
-                          delay: 0.45 + fi * 0.06,
-                          type: "spring",
-                          stiffness: 500,
-                          damping: 20,
-                        }}
-                      >
-                        +
-                      </motion.span>
-                      <span className="text-[#D1D5DB] text-[14px] leading-relaxed">
-                        {feature}
+                <div>
+                  {/* Header Row: Icon+Name Left, Price Right */}
+                  <div className="flex justify-between items-start mb-8">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-lg bg-neutral-900 border border-white/10 p-2">
+                        <Icon className="w-4 h-4 text-[#F7C2FF]" />
+                      </div>
+                      <h3 className="text-xl font-medium text-white">
+                        {plan.name}
+                      </h3>
+                    </div>
+                    <div className="text-right">
+                      <span className="block text-4xl font-bold tracking-tight text-white">
+                        {displayPrice}
                       </span>
-                    </motion.div>
-                  ))}
+                      <span className="text-xs text-neutral-400 font-normal">
+                        {displayPeriod}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Description Subtitle */}
+                  <p className="text-sm font-medium text-white mb-5">
+                    {plan.description}
+                  </p>
+
+                  {/* Features List */}
+                  <ul role="list" className="space-y-4 mb-10">
+                    {plan.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-3">
+                        <span className="bg-neutral-900 border border-white/10 rounded p-0.5 text-neutral-400 w-4 h-4 flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                          +
+                        </span>
+                        <span className="text-sm font-normal leading-relaxed text-neutral-500">
+                          {feature}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
 
                 {/* CTA Button */}
-                <motion.button
-                  className={`w-full py-3 rounded-lg text-[14px] font-semibold flex items-center justify-center gap-2 cursor-pointer ${
-                    plan.highlighted
-                      ? "bg-white text-black"
-                      : "bg-[#595959]/20 text-white"
+                <button
+                  className={`group/btn w-full py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-all duration-200 cursor-pointer ${
+                    isPopular
+                      ? "bg-white text-black hover:bg-neutral-200"
+                      : "bg-[#151516] text-white hover:bg-[#1e1e1f]"
                   }`}
-                  whileHover={{
-                    scale: 1.03,
-                    boxShadow: plan.highlighted
-                      ? "0 0 24px rgba(139,92,246,0.3)"
-                      : "0 0 16px rgba(255,255,255,0.08)",
-                    transition: { type: "tween", duration: 0.15 },
-                  }}
-                  whileTap={{ scale: 0.97 }}
                 >
                   Choose This Plan
-                  <motion.span
-                    whileHover={{ x: 3 }}
-                    transition={{ type: "tween", duration: 0.15 }}
-                  >
-                    <ArrowRight className="w-4 h-4" />
-                  </motion.span>
-                </motion.button>
+                  <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+                </button>
               </motion.div>
             );
           })}
         </div>
+
+        {/* View All Pricings */}
+        <motion.div
+          className="text-center mt-12 lg:mt-16"
+          initial={{ opacity: 0, y: 16 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{
+            duration: 0.5,
+            delay: 0.6,
+            ease: [0.22, 1, 0.36, 1],
+          }}
+        >
+          <motion.button
+            onClick={() => router.push("/plans")}
+            className="inline-flex items-center gap-2 bg-white text-[#0a0a0f] text-[14px] font-semibold px-7 py-3 rounded-lg cursor-pointer"
+            whileHover={{
+              scale: 1.04,
+              boxShadow: "0 0 24px rgba(99,102,241,0.25)",
+              backgroundColor: "#f0f0f5",
+            }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ type: "tween", duration: 0.15 }}
+          >
+            View all pricings
+          </motion.button>
+        </motion.div>
       </div>
     </section>
   );

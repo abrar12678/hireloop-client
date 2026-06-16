@@ -1,16 +1,92 @@
-import React from "react";
-import {
-  TextField,
-  InputGroup,
-  Select,
-  ListBox,
-  Checkbox,
-} from "@heroui/react";
-import { Magnifier, ChevronDown } from "@gravity-ui/icons";
+"use client";
+
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { ChevronDown } from "@gravity-ui/icons";
+
+const JOB_TYPE_OPTIONS = [
+  { id: "all", label: "All Types", count: null },
+  { id: "full-time", label: "Full-time", count: "1.2k" },
+  { id: "contract", label: "Contract", count: "432" },
+  { id: "part-time", label: "Part-time", count: null },
+  { id: "freelance", label: "Freelance", count: "158" },
+];
+
+const CATEGORY_OPTIONS = [
+  { id: "all", label: "All Categories", count: null },
+  { id: "engineering", label: "Engineering", count: "486" },
+  { id: "design", label: "Design", count: "215" },
+  { id: "product", label: "Product", count: "172" },
+  { id: "marketing", label: "Marketing", count: "98" },
+];
+
+function FilterSection({ title, options, selected, onToggle, defaultOpen = true }) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <div className="border-b border-zinc-800/60 pb-4">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between w-full text-left mb-3 group"
+      >
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 group-hover:text-zinc-300 transition-colors">
+          {title}
+        </h3>
+        <motion.div
+          animate={{ rotate: isOpen ? 0 : -90 }}
+          transition={{ duration: 0.2 }}
+        >
+          <ChevronDown className="w-4 h-4 text-zinc-500" />
+        </motion.div>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div className="flex flex-col gap-1.5">
+              {options.map((option) => (
+                <label
+                  key={option.id}
+                  className="flex items-center gap-3 cursor-pointer group/option py-0.5"
+                >
+                  <input
+                    type="radio"
+                    name={title}
+                    checked={selected === option.id}
+                    onChange={() => onToggle(option.id)}
+                    className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 text-purple-500 focus:ring-purple-500/30 focus:ring-offset-0 cursor-pointer accent-purple-500"
+                  />
+                  <span
+                    className={`text-sm transition-colors ${
+                      selected === option.id
+                        ? "text-white font-medium"
+                        : "text-zinc-400 group-hover/option:text-zinc-300"
+                    }`}
+                  >
+                    {option.label}
+                  </span>
+                  {option.count && (
+                    <span className="ml-auto text-xs text-zinc-600 bg-zinc-800/80 px-2 py-0.5 rounded-full">
+                      {option.count}
+                    </span>
+                  )}
+                </label>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 export default function JobFilters({
-  searchQuery,
-  setSearchQuery,
   selectedType,
   setSelectedType,
   selectedCategory,
@@ -19,147 +95,49 @@ export default function JobFilters({
   setIsRemoteOnly,
 }) {
   return (
-    <div className="flex flex-col gap-4 bg-zinc-900/50 p-6 rounded-[24px] border border-zinc-800/80 max-w-7xl mx-auto mb-10">
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-        {/* 1. Search Text Field - Span 5 columns */}
-        <div className="md:col-span-5">
-          <TextField
-            value={searchQuery}
-            onChange={(value) => setSearchQuery(value)}
-            className="w-full"
-          >
-            <span className="text-sm font-medium text-zinc-400 block mb-2">
-              Search Jobs
-            </span>
-            <InputGroup className="bg-zinc-800 border-zinc-700 focus-within:border-purple-500 rounded-xl transition-all">
-              <InputGroup.Prefix className="pl-3 text-zinc-500">
-                <Magnifier className="w-4 h-4" />
-              </InputGroup.Prefix>
-              <InputGroup.Input
-                placeholder="Title, company, or keywords..."
-                className="bg-transparent text-white placeholder-zinc-500 text-sm py-2.5 px-3 outline-none w-full"
-              />
-            </InputGroup>
-          </TextField>
-        </div>
+    <aside className="w-full shrink-0">
+      <div className="bg-[#1E1E1E] rounded-xl border border-zinc-800/60 p-5 space-y-4 sticky top-4">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-white">
+          Filters
+        </h2>
 
-        {/* 2. Job Type Select Filter - Span 3 columns */}
-        <div className="md:col-span-3">
-          <span className="text-sm font-medium text-zinc-400 block mb-2">
-            Job Type
-          </span>
-          <Select
-            selectedKey={selectedType}
-            onSelectionChange={(key) => setSelectedType(key)}
-          >
-            <Select.Trigger className="w-full flex items-center justify-between bg-zinc-800 text-white border border-zinc-700 hover:border-zinc-600 rounded-xl py-2.5 px-4 text-sm font-normal transition-all">
-              <Select.Value>
-                {selectedType === "all"
-                  ? "All Types"
-                  : selectedType.replace("-", " ")}
-              </Select.Value>
-              <Select.Indicator>
-                <ChevronDown className="w-4 h-4 text-zinc-400" />
-              </Select.Indicator>
-            </Select.Trigger>
+        <FilterSection
+          title="Job Type"
+          options={JOB_TYPE_OPTIONS}
+          selected={selectedType}
+          onToggle={setSelectedType}
+          defaultOpen={true}
+        />
 
-            <Select.Popover className="bg-zinc-800 border border-zinc-700 rounded-xl shadow-xl mt-1 overflow-hidden z-50">
-              <ListBox className="p-1">
-                <ListBox.Item
-                  id="all"
-                  className="flex items-center justify-between text-zinc-200 hover:bg-purple-600 hover:text-white rounded-lg px-3 py-2 text-sm cursor-pointer capitalize"
-                >
-                  <span>All Types</span>
-                </ListBox.Item>
-                <ListBox.Item
-                  id="full-time"
-                  className="flex items-center justify-between text-zinc-200 hover:bg-purple-600 hover:text-white rounded-lg px-3 py-2 text-sm cursor-pointer capitalize"
-                >
-                  <span>Full-time</span>
-                </ListBox.Item>
-                <ListBox.Item
-                  id="part-time"
-                  className="flex items-center justify-between text-zinc-200 hover:bg-purple-600 hover:text-white rounded-lg px-3 py-2 text-sm cursor-pointer capitalize"
-                >
-                  <span>Part-time</span>
-                </ListBox.Item>
-                <ListBox.Item
-                  id="contract"
-                  className="flex items-center justify-between text-zinc-200 hover:bg-purple-600 hover:text-white rounded-lg px-3 py-2 text-sm cursor-pointer capitalize"
-                >
-                  <span>Contract</span>
-                </ListBox.Item>
-              </ListBox>
-            </Select.Popover>
-          </Select>
-        </div>
+        <FilterSection
+          title="Category"
+          options={CATEGORY_OPTIONS}
+          selected={selectedCategory}
+          onToggle={setSelectedCategory}
+          defaultOpen={true}
+        />
 
-        {/* 3. Category Select Filter - Span 3 columns */}
-        <div className="md:col-span-3">
-          <span className="text-sm font-medium text-zinc-400 block mb-2">
-            Category
-          </span>
-          <Select
-            selectedKey={selectedCategory}
-            onSelectionChange={(key) => setSelectedCategory(key)}
-          >
-            <Select.Trigger className="w-full flex items-center justify-between bg-zinc-800 text-white border border-zinc-700 hover:border-zinc-600 rounded-xl py-2.5 px-4 text-sm font-normal transition-all">
-              <Select.Value>
-                {selectedCategory === "all"
-                  ? "All Categories"
-                  : selectedCategory}
-              </Select.Value>
-              <Select.Indicator>
-                <ChevronDown className="w-4 h-4 text-zinc-400" />
-              </Select.Indicator>
-            </Select.Trigger>
-
-            <Select.Popover className="bg-zinc-800 border border-zinc-700 rounded-xl shadow-xl mt-1 overflow-hidden z-50">
-              <ListBox className="p-1">
-                <ListBox.Item
-                  id="all"
-                  className="text-zinc-200 hover:bg-purple-600 hover:text-white rounded-lg px-3 py-2 text-sm cursor-pointer capitalize"
-                >
-                  <span>All Categories</span>
-                </ListBox.Item>
-                <ListBox.Item
-                  id="engineering"
-                  className="text-zinc-200 hover:bg-purple-600 hover:text-white rounded-lg px-3 py-2 text-sm cursor-pointer capitalize"
-                >
-                  <span>Engineering</span>
-                </ListBox.Item>
-                <ListBox.Item
-                  id="design"
-                  className="text-zinc-200 hover:bg-purple-600 hover:text-white rounded-lg px-3 py-2 text-sm cursor-pointer capitalize"
-                >
-                  <span>Design</span>
-                </ListBox.Item>
-                <ListBox.Item
-                  id="product"
-                  className="text-zinc-200 hover:bg-purple-600 hover:text-white rounded-lg px-3 py-2 text-sm cursor-pointer capitalize"
-                >
-                  <span>Product</span>
-                </ListBox.Item>
-              </ListBox>
-            </Select.Popover>
-          </Select>
-        </div>
-
-        {/* 4. Remote Checkbox Filter - Span 1 column */}
-        <div className="md:col-span-1 flex items-center justify-start md:justify-center h-10 pb-1">
-          <label className="flex items-center gap-2 cursor-pointer select-none">
+        {/* Remote Toggle */}
+        <div className="border-b border-zinc-800/60 pb-4">
+          <label className="flex items-center gap-3 cursor-pointer group">
             <input
               type="checkbox"
               checked={isRemoteOnly}
               onChange={(e) => setIsRemoteOnly(e.target.checked)}
-              className="accent-purple-500 w-4 h-4 rounded bg-zinc-800 border-zinc-700 cursor-pointer"
+              className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 text-purple-500 focus:ring-purple-500/30 focus:ring-offset-0 cursor-pointer accent-purple-500"
             />
-            <span className="text-sm font-medium text-zinc-300 md:hidden lg:inline">
-              Remote
+            <span
+              className={`text-sm transition-colors ${
+                isRemoteOnly
+                  ? "text-white font-medium"
+                  : "text-zinc-400 group-hover:text-zinc-300"
+              }`}
+            >
+              Remote Only
             </span>
           </label>
         </div>
       </div>
-    </div>
+    </aside>
   );
 }

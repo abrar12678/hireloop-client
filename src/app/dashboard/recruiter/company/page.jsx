@@ -12,7 +12,7 @@ const CompanyPage = async () => {
       <CompanyProfile
         recruiter={user}
         recruiterCompany={company}
-      ></CompanyProfile>
+      />
     </div>
   );
 };
