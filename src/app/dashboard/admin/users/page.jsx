@@ -1,257 +1,588 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
-import { protectedClientFetch, clientMutation } from "@/lib/core/client";
-import { Magnifier, ArrowUpRight } from "@gravity-ui/icons";
-import { toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import React, { useState, useMemo } from "react";
+import {
+  Users,
+  UserPlus,
+  ShieldOff,
+  TrendingUp,
+  Search,
+  Download,
+  ChevronLeft,
+  ChevronRight,
+  UserCog,
+  Ban,
+  CheckCircle2,
+  UserX,
+} from "lucide-react";
+import { useSession } from "@/lib/auth-client";
 
-const RoleBadge = ({ role }) => {
-  const styles = {
-    seeker: "bg-zinc-800 text-zinc-300 border-zinc-700",
-    recruiter: "bg-white/10 text-zinc-100 border-white/20",
-    admin: "bg-purple-500/20 text-purple-300 border-purple-500/30",
-  };
-  return (
-    <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${styles[role] || styles.seeker} capitalize`}>
-      {role}
-    </span>
-  );
-};
+/* ------------------------------------------------------------------ */
+/*  MOCK DATA                                                          */
+/* ------------------------------------------------------------------ */
+const MOCK_USERS = [
+  { id: "u1",  name: "Sarah Johnson",  email: "sarah.johnson@email.com",   role: "seeker",   status: "active",    joinDate: "2024-11-03" },
+  { id: "u2",  name: "Marcus Chen",    email: "marcus.chen@email.com",     role: "recruiter", status: "active",    joinDate: "2024-09-18" },
+  { id: "u3",  name: "Emily Davis",    email: "emily.davis@email.com",     role: "seeker",   status: "suspended", joinDate: "2024-06-22" },
+  { id: "u4",  name: "James Wilson",   email: "james.wilson@email.com",    role: "recruiter", status: "active",    joinDate: "2025-01-14" },
+  { id: "u5",  name: "Aria Patel",     email: "aria.patel@email.com",      role: "seeker",   status: "active",    joinDate: "2025-03-27" },
+  { id: "u6",  name: "Tom Anderson",   email: "tom.anderson@email.com",    role: "admin",    status: "active",    joinDate: "2023-12-01" },
+  { id: "u7",  name: "Lisa Zhang",     email: "lisa.zhang@email.com",      role: "recruiter", status: "suspended", joinDate: "2024-08-09" },
+  { id: "u8",  name: "David Kim",      email: "david.kim@email.com",       role: "seeker",   status: "active",    joinDate: "2025-04-11" },
+  { id: "u9",  name: "Nina Foster",    email: "nina.foster@email.com",     role: "seeker",   status: "active",    joinDate: "2024-10-05" },
+  { id: "u10", name: "Ryan Brooks",    email: "ryan.brooks@email.com",     role: "recruiter", status: "active",    joinDate: "2025-02-19" },
+];
 
+const ITEMS_PER_PAGE = 5;
+
+/* ------------------------------------------------------------------ */
+/*  HELPERS                                                            */
+/* ------------------------------------------------------------------ */
+const formatDate = (d) =>
+  new Date(d).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
+
+const getInitials = (name) =>
+  name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+/* ------------------------------------------------------------------ */
+/*  1. KpiStatCard                                                     */
+/* ------------------------------------------------------------------ */
+const KpiStatCard = ({ icon: Icon, label, value, change, changeType }) => (
+  <div
+    className="bg-[#1B1B1F] border border-white/[0.05] rounded-[14px] h-[90px] flex items-center gap-4 px-5 shadow-[0_2px_8px_rgba(0,0,0,0.18)]"
+    aria-label={`${label}: ${value}`}
+  >
+    <div className="w-11 h-11 rounded-[10px] bg-[#3A3A40] flex items-center justify-center shrink-0">
+      <Icon size={20} className="text-[#A1A1AA]" />
+    </div>
+    <div className="min-w-0">
+      <p className="text-[22px] font-bold text-white leading-tight tracking-tight">{value}</p>
+      <p className="text-[12px] text-[#A1A1AA] truncate">{label}</p>
+      {change && (
+        <p
+          className={`text-[11px] mt-0.5 ${
+            changeType === "positive" ? "text-[#22C55E]" : changeType === "negative" ? "text-[#EF4444]" : "text-[#71717A]"
+          }`}
+        >
+          {change}
+        </p>
+      )}
+    </div>
+  </div>
+);
+
+/* ------------------------------------------------------------------ */
+/*  2. RoleBadge                                                        */
+/* ------------------------------------------------------------------ */
+const RoleBadge = ({ role }) => (
+  <span className="bg-[#3A3A40] text-[#A1A1AA] text-[12px] px-2.5 py-1 rounded-full font-medium capitalize">
+    {role}
+  </span>
+);
+
+/* ------------------------------------------------------------------ */
+/*  3. StatusBadge                                                      */
+/* ------------------------------------------------------------------ */
 const StatusBadge = ({ status }) => {
-  const styles = {
-    active: "bg-emerald-950/40 text-emerald-400 border-emerald-800/40",
-    suspended: "bg-rose-950/40 text-rose-400 border-rose-800/40",
-  };
+  const isActive = status === "active";
   return (
-    <span className={`text-xs font-medium px-2.5 py-1 rounded-full border capitalize ${styles[status] || styles.active}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 text-[12px] font-medium px-2.5 py-1 rounded-full border capitalize ${
+        isActive
+          ? "bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30"
+          : "bg-[#EF4444]/15 text-[#EF4444] border-[#EF4444]/30"
+      }`}
+      aria-label={`Status: ${status}`}
+    >
+      {isActive ? <CheckCircle2 size={12} /> : <UserX size={12} />}
       {status}
     </span>
   );
 };
 
-const formatDate = (dateString) => {
-  if (!dateString) return "N/A";
-  const d = new Date(dateString);
-  return d.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
+/* ------------------------------------------------------------------ */
+/*  4. UserAvatar                                                       */
+/* ------------------------------------------------------------------ */
+const UserAvatar = ({ name }) => (
+  <div
+    className="w-8 h-8 rounded-full bg-[#3A3A40] flex items-center justify-center shrink-0 text-white text-[12px] font-bold"
+    aria-hidden="true"
+  >
+    {getInitials(name)}
+  </div>
+);
+
+/* ------------------------------------------------------------------ */
+/*  5. FilterDropdown                                                   */
+/* ------------------------------------------------------------------ */
+const FilterDropdown = ({ value, onChange, options, label }) => (
+  <select
+    value={value}
+    onChange={onChange}
+    aria-label={label}
+    className="appearance-none bg-[#0E0E11] border border-white/[0.08] rounded-[10px] text-white text-sm px-4 py-2 pr-9 outline-none cursor-pointer focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11] transition-colors"
+    style={{
+      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23A1A1AA' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 6l3.5 4 3.5-4z'/%3E%3C/svg%3E")`,
+      backgroundRepeat: "no-repeat",
+      backgroundPosition: "right 10px center",
+    }}
+  >
+    {options.map((o) => (
+      <option key={o.value} value={o.value}>
+        {o.label}
+      </option>
+    ))}
+  </select>
+);
+
+/* ------------------------------------------------------------------ */
+/*  6. SearchInput                                                      */
+/* ------------------------------------------------------------------ */
+const SearchInput = ({ value, onChange }) => (
+  <div className="relative">
+    <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#71717A] pointer-events-none" />
+    <input
+      type="text"
+      value={value}
+      onChange={onChange}
+      placeholder="Search users by name or email..."
+      aria-label="Search users"
+      className="w-full bg-[#1B1B1F] border border-white/[0.06] rounded-full text-white text-sm pl-10 pr-4 py-2.5 outline-none placeholder:text-[#71717A] focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11] transition-colors"
+    />
+  </div>
+);
+
+/* ------------------------------------------------------------------ */
+/*  7. UserRow (desktop)                                                */
+/* ------------------------------------------------------------------ */
+const UserRow = ({ user, onRoleChange, onStatusToggle }) => {
+  const roleActionLabel = user.role === "seeker" ? "Make Recruiter" : user.role === "recruiter" ? "Make Seeker" : null;
+  const roleActionTarget = user.role === "seeker" ? "recruiter" : user.role === "recruiter" ? "seeker" : null;
+  const isActive = user.status === "active";
+
+  return (
+    <tr className="border-b border-white/[0.05] hover:bg-[#222228] transition-colors">
+      <td className="py-3.5 px-5">
+        <div className="flex items-center gap-3">
+          <UserAvatar name={user.name} />
+          <span className="text-white font-medium text-sm">{user.name}</span>
+        </div>
+      </td>
+      <td className="py-3.5 px-5 text-[#A1A1AA] text-sm">{user.email}</td>
+      <td className="py-3.5 px-5">
+        <RoleBadge role={user.role} />
+      </td>
+      <td className="py-3.5 px-5 text-[#71717A] text-sm">{formatDate(user.joinDate)}</td>
+      <td className="py-3.5 px-5">
+        <StatusBadge status={user.status} />
+      </td>
+      <td className="py-3.5 px-5">
+        <div className="flex items-center gap-2">
+          {roleActionLabel && (
+            <button
+              onClick={() => onRoleChange(user.id, roleActionTarget)}
+              aria-label={`${roleActionLabel} for ${user.name}`}
+              className="inline-flex items-center gap-1 text-[12px] font-medium px-3 py-1.5 rounded-[10px] bg-[#3A3A40] text-[#A1A1AA] hover:bg-[#222228] border border-white/[0.06] transition-colors focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11]"
+            >
+              <UserCog size={12} />
+              {roleActionLabel}
+            </button>
+          )}
+          <button
+            onClick={() => onStatusToggle(user.id)}
+            aria-label={`${isActive ? "Suspend" : "Activate"} ${user.name}`}
+            className={`inline-flex items-center gap-1 text-[12px] font-medium px-3 py-1.5 rounded-[10px] border transition-colors focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11] ${
+              isActive
+                ? "bg-[#EF4444]/15 text-[#EF4444] border-[#EF4444]/30 hover:bg-[#EF4444]/25"
+                : "bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30 hover:bg-[#22C55E]/25"
+            }`}
+          >
+            {isActive ? <Ban size={12} /> : <CheckCircle2 size={12} />}
+            {isActive ? "Suspend" : "Activate"}
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
 };
 
+/* ------------------------------------------------------------------ */
+/*  8. UserCard (mobile)                                                */
+/* ------------------------------------------------------------------ */
+const UserCard = ({ user, onRoleChange, onStatusToggle }) => {
+  const roleActionLabel = user.role === "seeker" ? "Make Recruiter" : user.role === "recruiter" ? "Make Seeker" : null;
+  const roleActionTarget = user.role === "seeker" ? "recruiter" : user.role === "recruiter" ? "seeker" : null;
+  const isActive = user.status === "active";
+
+  return (
+    <div className="bg-[#1B1B1F] border border-white/[0.05] rounded-[14px] p-4 space-y-3 shadow-[0_2px_8px_rgba(0,0,0,0.18)]">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <UserAvatar name={user.name} />
+          <div>
+            <p className="text-white font-medium text-sm">{user.name}</p>
+            <p className="text-[#71717A] text-[12px]">{user.email}</p>
+          </div>
+        </div>
+        <StatusBadge status={user.status} />
+      </div>
+      <div className="flex items-center gap-2 text-[12px] text-[#71717A]">
+        <RoleBadge role={user.role} />
+        <span>·</span>
+        <span>{formatDate(user.joinDate)}</span>
+      </div>
+      <div className="flex items-center gap-2 pt-1">
+        {roleActionLabel && (
+          <button
+            onClick={() => onRoleChange(user.id, roleActionTarget)}
+            aria-label={`${roleActionLabel} for ${user.name}`}
+            className="inline-flex items-center gap-1 text-[12px] font-medium px-3 py-1.5 rounded-[10px] bg-[#3A3A40] text-[#A1A1AA] hover:bg-[#222228] border border-white/[0.06] transition-colors focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11]"
+          >
+            <UserCog size={12} />
+            {roleActionLabel}
+          </button>
+        )}
+        <button
+          onClick={() => onStatusToggle(user.id)}
+          aria-label={`${isActive ? "Suspend" : "Activate"} ${user.name}`}
+          className={`inline-flex items-center gap-1 text-[12px] font-medium px-3 py-1.5 rounded-[10px] border transition-colors focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11] ${
+            isActive
+              ? "bg-[#EF4444]/15 text-[#EF4444] border-[#EF4444]/30 hover:bg-[#EF4444]/25"
+              : "bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30 hover:bg-[#22C55E]/25"
+          }`}
+        >
+          {isActive ? <Ban size={12} /> : <CheckCircle2 size={12} />}
+          {isActive ? "Suspend" : "Activate"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/*  9. Pagination                                                       */
+/* ------------------------------------------------------------------ */
+const Pagination = ({ currentPage, totalPages, totalItems, paginatedItems, onPageChange }) => {
+  if (totalPages <= 1) return null;
+
+  const start = (currentPage - 1) * ITEMS_PER_PAGE + 1;
+  const end = Math.min(currentPage * ITEMS_PER_PAGE, totalItems);
+
+  const pages = [];
+  const maxVisible = 5;
+  let startP = Math.max(1, currentPage - 2);
+  const endP = Math.min(totalPages, startP + maxVisible - 1);
+  if (endP - startP < maxVisible - 1) startP = Math.max(1, endP - maxVisible + 1);
+
+  for (let i = startP; i <= endP; i++) pages.push(i);
+
+  return (
+    <div className="flex items-center justify-between px-5 py-4 border-t border-white/[0.05]">
+      <p className="text-[12px] text-[#71717A]">
+        Showing {start}–{end} of {totalItems} users
+      </p>
+      <nav className="flex items-center gap-1" aria-label="Pagination">
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          aria-label="Previous page"
+          className="w-8 h-8 flex items-center justify-center rounded-[10px] text-[#A1A1AA] hover:text-white hover:bg-[#222228] disabled:opacity-30 transition-colors focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11]"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        {pages.map((p) => (
+          <button
+            key={p}
+            onClick={() => onPageChange(p)}
+            aria-label={`Page ${p}`}
+            aria-current={p === currentPage ? "page" : undefined}
+            className={`w-8 h-8 flex items-center justify-center rounded-[10px] text-sm font-medium transition-colors focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11] ${
+              p === currentPage
+                ? "bg-white text-black"
+                : "text-[#A1A1AA] hover:text-white hover:bg-[#222228]"
+            }`}
+          >
+            {p}
+          </button>
+        ))}
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          aria-label="Next page"
+          className="w-8 h-8 flex items-center justify-center rounded-[10px] text-[#A1A1AA] hover:text-white hover:bg-[#222228] disabled:opacity-30 transition-colors focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11]"
+        >
+          <ChevronRight size={16} />
+        </button>
+      </nav>
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/*  10. EmptyState                                                      */
+/* ------------------------------------------------------------------ */
+const EmptyState = () => (
+  <div className="py-20 flex flex-col items-center justify-center gap-3">
+    <div className="w-14 h-14 rounded-full bg-[#3A3A40] flex items-center justify-center">
+      <Users size={24} className="text-[#71717A]" />
+    </div>
+    <p className="text-[#A1A1AA] text-sm font-medium">No users found</p>
+    <p className="text-[#71717A] text-[12px]">Try adjusting your search or filter criteria.</p>
+  </div>
+);
+
+/* ------------------------------------------------------------------ */
+/*  LOADING SPINNER                                                     */
+/* ------------------------------------------------------------------ */
+const LoadingOverlay = () => (
+  <div className="flex items-center justify-center py-24">
+    <div className="w-7 h-7 border-2 border-[#3B82F6] border-t-transparent rounded-full animate-spin" />
+  </div>
+);
+
+/* ------------------------------------------------------------------ */
+/*  MAIN PAGE                                                          */
+/* ------------------------------------------------------------------ */
+const TABS = [
+  { value: "all",      label: "All" },
+  { value: "seeker",   label: "Seekers" },
+  { value: "recruiter", label: "Recruiters" },
+  { value: "admin",    label: "Admins" },
+];
+
 const AdminUsersPage = () => {
-  const [users, setUsers] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all");
-  const [page, setPage] = useState(1);
-  const perPage = 10;
+  const { isPending } = useSession();
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
-    try {
-      const sp = new URLSearchParams({ page, perPage });
-      if (search) sp.set("search", search);
-      if (roleFilter !== "all") sp.set("role", roleFilter);
-      const data = await protectedClientFetch(`/users?${sp.toString()}`);
-      if (data && !Array.isArray(data)) {
-        setUsers(data.users || []);
-        setTotal(data.total || 0);
-      } else {
-        setUsers(Array.isArray(data) ? data : []);
-      }
-    } catch (err) {
-      console.error("Failed to fetch users:", err);
-    } finally {
-      setLoading(false);
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [users, setUsers] = useState(MOCK_USERS);
+
+  /* ---------- filtering ---------- */
+  const filtered = useMemo(() => {
+    let result = users;
+
+    if (activeFilter !== "all") {
+      result = result.filter((u) => u.role === activeFilter);
     }
-  }, [search, roleFilter, page]);
 
-  useEffect(() => { fetchUsers(); }, [fetchUsers]);
-
-  const handleRoleChange = async (userId, newRole) => {
-    try {
-      await clientMutation(`/users/${userId}/role`, { role: newRole }, "PATCH");
-      toast.success(`User role updated to ${newRole}`, {
-        position: "top-center", autoClose: 2000, theme: "dark",
-        style: { background: "#1a1a2e", color: "#fff" },
-      });
-      fetchUsers();
-    } catch (err) {
-      toast.error("Failed to update role", {
-        position: "top-center", autoClose: 3000, theme: "dark",
-        style: { background: "#1a1a2e", color: "#fff" },
-      });
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+      );
     }
+
+    return result;
+  }, [users, activeFilter, searchQuery]);
+
+  /* ---------- pagination ---------- */
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  /* ---------- actions (local mock) ---------- */
+  const handleRoleChange = (userId, newRole) => {
+    setUsers((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
+    );
   };
 
-  const handleStatusChange = async (userId, newStatus) => {
-    try {
-      await clientMutation(`/users/${userId}/status`, { status: newStatus }, "PATCH");
-      toast.success(`User ${newStatus}`, {
-        position: "top-center", autoClose: 2000, theme: "dark",
-        style: { background: "#1a1a2e", color: "#fff" },
-      });
-      fetchUsers();
-    } catch (err) {
-      toast.error("Failed to update status", {
-        position: "top-center", autoClose: 3000, theme: "dark",
-        style: { background: "#1a1a2e", color: "#fff" },
-      });
-    }
+  const handleStatusToggle = (userId) => {
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === userId ? { ...u, status: u.status === "active" ? "suspended" : "active" } : u
+      )
+    );
   };
 
-  const totalPages = Math.ceil(total / perPage);
+  /* ---------- filter resets ---------- */
+  const handleTabChange = (tab) => {
+    setActiveFilter(tab);
+    setCurrentPage(1);
+  };
 
-  const activeCount = users.filter((u) => u.status === "active").length;
-  const suspendedCount = users.filter((u) => u.status === "suspended").length;
-  const recruiterCount = users.filter((u) => u.role === "recruiter").length;
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+    setCurrentPage(1);
+  };
 
-  const statCards = [
-    { label: "Total Active Users", value: total.toLocaleString(), sub: "+12% vs last month", color: "text-emerald-400" },
-    { label: "Recruiter Growth", value: recruiterCount.toLocaleString(), sub: "High demand", color: "text-emerald-400" },
-    { label: "Suspended Accounts", value: suspendedCount.toLocaleString(), sub: "0.8% of total", color: "text-zinc-400" },
-    { label: "New Signups (24h)", value: "—", sub: "Steady activity", color: "text-amber-400" },
+  /* ---------- KPI data ---------- */
+  const kpis = [
+    { icon: Users,      label: "Total Users",        value: "24,512",  change: "+12% vs last month", changeType: "positive" },
+    { icon: TrendingUp,  label: "Recruiter Growth",    value: "3,847",   change: "High demand",        changeType: "positive" },
+    { icon: ShieldOff,   label: "Suspended Accounts",  value: "196",     change: "0.8% of total",       changeType: "neutral" },
+    { icon: UserPlus,    label: "New Signups",         value: "148",     change: "Steady",              changeType: "neutral" },
   ];
+
+  /* ---------- session loading ---------- */
+  if (isPending) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="flex items-center justify-center py-32">
+          <div className="w-7 h-7 border-2 border-[#3B82F6] border-t-transparent rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* ============================================================ */}
+      {/*  1. HEADER                                                    */}
+      {/* ============================================================ */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-white">User Management</h2>
-          <p className="text-sm text-zinc-500 mt-1">Review, filter, and manage platform access for all users.</p>
+          <h1 className="text-[42px] font-bold text-white leading-none tracking-tight">
+            User Management
+          </h1>
+          <p className="text-[#A1A1AA] text-sm mt-2">
+            Review, filter, and manage platform access for all registered users.
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <select
-            value={roleFilter}
-            onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
-            className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-sm rounded-xl px-4 py-2 outline-none cursor-pointer"
+        <div className="flex items-center gap-3 shrink-0">
+          <FilterDropdown
+            label="Filter by role"
+            value={activeFilter}
+            onChange={(e) => handleTabChange(e.target.value)}
+            options={[
+              { value: "all",      label: "All Roles" },
+              { value: "seeker",   label: "Seekers" },
+              { value: "recruiter", label: "Recruiters" },
+              { value: "admin",    label: "Admins" },
+            ]}
+          />
+          <button
+            aria-label="Export user list"
+            className="inline-flex items-center gap-2 bg-[#1B1B1F] border border-white/[0.06] text-[#A1A1AA] hover:bg-[#222228] text-sm font-medium px-4 py-2.5 rounded-[10px] transition-colors focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11]"
           >
-            <option value="all">All Roles</option>
-            <option value="seeker">Seekers</option>
-            <option value="recruiter">Recruiters</option>
-            <option value="admin">Admins</option>
-          </select>
-          <button className="px-4 py-2 text-sm font-medium text-zinc-300 bg-zinc-800 border border-zinc-700 rounded-xl hover:bg-zinc-700 transition-colors">
+            <Download size={15} />
             Export List
           </button>
         </div>
       </div>
 
-      {/* 4 Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((card, idx) => (
-          <div key={idx} className="bg-[#141419] border border-zinc-800/60 rounded-2xl p-5 space-y-1">
-            <p className="text-2xl font-bold text-white tracking-tight">{card.value}</p>
-            <p className="text-xs text-zinc-500">{card.label}</p>
-            <p className={`text-xs ${card.color}`}>{card.sub}</p>
-          </div>
+      {/* ============================================================ */}
+      {/*  2. KPI ROW                                                   */}
+      {/* ============================================================ */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {kpis.map((kpi, idx) => (
+          <KpiStatCard key={idx} {...kpi} />
         ))}
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Magnifier className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 w-4 h-4" />
-        <input
-          type="text"
-          placeholder="Search by email..."
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          className="w-full bg-zinc-800/60 border border-zinc-800 text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none focus:border-purple-500/50 transition-colors placeholder-zinc-600"
-        />
+      {/* ============================================================ */}
+      {/*  3. TAB BAR + SEARCH                                          */}
+      {/* ============================================================ */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        {/* Tab bar */}
+        <div
+          className="inline-flex items-center bg-[#1B1B1F] border border-white/[0.05] rounded-[14px] p-1 gap-1"
+          role="tablist"
+          aria-label="Filter users by role"
+        >
+          {TABS.map((tab) => (
+            <button
+              key={tab.value}
+              role="tab"
+              aria-selected={activeFilter === tab.value}
+              aria-label={`Show ${tab.label}`}
+              onClick={() => handleTabChange(tab.value)}
+              className={`px-4 py-2 text-sm font-medium rounded-[10px] transition-colors focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11] ${
+                activeFilter === tab.value
+                  ? "bg-[#3A3A40] text-white"
+                  : "text-[#71717A] hover:text-[#A1A1AA] hover:bg-[#222228]"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Search */}
+        <div className="flex-1 max-w-sm ml-auto">
+          <SearchInput value={searchQuery} onChange={handleSearchChange} />
+        </div>
       </div>
 
-      {/* Users Table */}
-      <div className="bg-[#141419] border border-zinc-800/60 rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+      {/* ============================================================ */}
+      {/*  4. USERS TABLE                                               */}
+      {/* ============================================================ */}
+      <div className="bg-[#1B1B1F] border border-white/[0.05] rounded-[14px] shadow-[0_2px_8px_rgba(0,0,0,0.18)] overflow-hidden">
+        {/* --- Desktop table (hidden on mobile) --- */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-sm" aria-label="Users list">
             <thead>
-              <tr className="border-b border-zinc-800/60">
-                <th className="text-left text-zinc-500 font-medium py-3 px-5 text-xs uppercase tracking-wider">User Name</th>
-                <th className="text-left text-zinc-500 font-medium py-3 px-5 text-xs uppercase tracking-wider">Email Address</th>
-                <th className="text-left text-zinc-500 font-medium py-3 px-5 text-xs uppercase tracking-wider">Role</th>
-                <th className="text-left text-zinc-500 font-medium py-3 px-5 text-xs uppercase tracking-wider">Join Date</th>
-                <th className="text-left text-zinc-500 font-medium py-3 px-5 text-xs uppercase tracking-wider">Status</th>
-                <th className="text-left text-zinc-500 font-medium py-3 px-5 text-xs uppercase tracking-wider">Actions</th>
+              <tr className="border-b border-white/[0.05]">
+                <th scope="col" className="text-left text-[#71717A] font-medium py-3.5 px-5 text-[12px] uppercase tracking-wider">
+                  User
+                </th>
+                <th scope="col" className="text-left text-[#71717A] font-medium py-3.5 px-5 text-[12px] uppercase tracking-wider">
+                  Email
+                </th>
+                <th scope="col" className="text-left text-[#71717A] font-medium py-3.5 px-5 text-[12px] uppercase tracking-wider">
+                  Role
+                </th>
+                <th scope="col" className="text-left text-[#71717A] font-medium py-3.5 px-5 text-[12px] uppercase tracking-wider">
+                  Join Date
+                </th>
+                <th scope="col" className="text-left text-[#71717A] font-medium py-3.5 px-5 text-[12px] uppercase tracking-wider">
+                  Status
+                </th>
+                <th scope="col" className="text-left text-[#71717A] font-medium py-3.5 px-5 text-[12px] uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr><td colSpan={6} className="py-20 text-center"><div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto" /></td></tr>
-              ) : users.length === 0 ? (
-                <tr><td colSpan={6} className="py-16 text-center text-zinc-600">No users found.</td></tr>
+              {paginated.length === 0 ? (
+                <tr>
+                  <td colSpan={6}>
+                    <EmptyState />
+                  </td>
+                </tr>
               ) : (
-                users.map((u) => {
-                  const uid = u._id?.$oid || u._id;
-                  const initials = (u.name || "U").split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
-                  return (
-                    <tr key={uid} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
-                      <td className="py-3 px-5">
-                        <div className="flex items-center gap-3">
-                          {u.image ? (
-                            <img src={u.image} alt="" className="w-8 h-8 rounded-full object-cover" />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 text-xs font-bold">{initials}</div>
-                          )}
-                          <span className="text-zinc-100 font-medium">{u.name || "Unknown"}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-5 text-zinc-400">{u.email || "—"}</td>
-                      <td className="py-3 px-5"><RoleBadge role={u.role} /></td>
-                      <td className="py-3 px-5 text-zinc-500 text-xs">{formatDate(u.createdAt?.$date || u.createdAt)}</td>
-                      <td className="py-3 px-5"><StatusBadge status={u.status || "active"} /></td>
-                      <td className="py-3 px-5">
-                        <div className="flex items-center gap-2">
-                          {u.role === "seeker" && (
-                            <button onClick={() => handleRoleChange(uid, "recruiter")} className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 border border-zinc-700 transition-colors">
-                              Make Recruiter
-                            </button>
-                          )}
-                          {u.role === "recruiter" && (
-                            <button onClick={() => handleRoleChange(uid, "seeker")} className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 border border-zinc-700 transition-colors">
-                              Make Seeker
-                            </button>
-                          )}
-                          {u.status === "active" ? (
-                            <button onClick={() => handleStatusChange(uid, "suspended")} className="text-xs px-3 py-1.5 rounded-lg bg-rose-950/40 text-rose-400 hover:bg-rose-950/60 border border-rose-800/30 transition-colors">
-                              Suspend
-                            </button>
-                          ) : (
-                            <button onClick={() => handleStatusChange(uid, "active")} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-950/40 text-emerald-400 hover:bg-emerald-950/60 border border-emerald-800/30 transition-colors">
-                              Activate
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                paginated.map((user) => (
+                  <UserRow
+                    key={user.id}
+                    user={user}
+                    onRoleChange={handleRoleChange}
+                    onStatusToggle={handleStatusToggle}
+                  />
+                ))
               )}
             </tbody>
           </table>
         </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-5 py-4 border-t border-zinc-800/40">
-            <p className="text-xs text-zinc-500">
-              Showing {(page - 1) * perPage + 1} to {Math.min(page * perPage, total)} of {total} users
-            </p>
-            <div className="flex items-center gap-1">
-              <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 disabled:opacity-30 transition-colors text-sm">‹</button>
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                const p = page <= 3 ? i + 1 : page + i - 2;
-                if (p < 1 || p > totalPages) return null;
-                return (
-                  <button key={p} onClick={() => setPage(p)} className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${p === page ? "bg-white text-black" : "text-zinc-400 hover:text-white hover:bg-zinc-800"}`}>
-                    {p}
-                  </button>
-                );
-              })}
-              <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 disabled:opacity-30 transition-colors text-sm">›</button>
-            </div>
-          </div>
-        )}
+        {/* --- Mobile cards (hidden on md+) --- */}
+        <div className="md:hidden p-3 space-y-3">
+          {paginated.length === 0 ? (
+            <EmptyState />
+          ) : (
+            paginated.map((user) => (
+              <UserCard
+                key={user.id}
+                user={user}
+                onRoleChange={handleRoleChange}
+                onStatusToggle={handleStatusToggle}
+              />
+            ))
+          )}
+        </div>
+
+        {/* --- Pagination --- */}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filtered.length}
+          paginatedItems={paginated.length}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </div>
   );

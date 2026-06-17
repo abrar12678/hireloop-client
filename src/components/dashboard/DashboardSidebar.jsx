@@ -126,8 +126,11 @@ function SidebarContent({ user, onNavClick }) {
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="px-6 pt-6 pb-5">
-        <Link href="/" className="text-white font-bold text-2xl tracking-tight">
-          HireLoop
+        <Link href="/" className="block">
+          <span className="text-white font-bold text-2xl tracking-tight">HireLoop</span>
+          {user?.role === "admin" && (
+            <span className="block text-[11px] text-[#71717A] mt-0.5 font-medium tracking-wide">ADMIN CONSOLE</span>
+          )}
         </Link>
       </div>
 
