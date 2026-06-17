@@ -1,7 +1,7 @@
 import { getApplicationsByApplicant } from "@/lib/api/applications";
 import { getUserSession } from "@/lib/core/session";
 import React from "react";
-import ApplicationsTable from "./ApplicationsTable";
+import ApplicationsContent from "./ApplicationsContent";
 
 const ApplicationsPage = async () => {
   let jobs = [];
@@ -12,7 +12,7 @@ const ApplicationsPage = async () => {
     console.error("Failed to fetch applications:", err);
   }
 
-  return <ApplicationsTable jobs={jobs} />;
+  return <ApplicationsContent jobs={jobs} />;
 };
 
 export default ApplicationsPage;
