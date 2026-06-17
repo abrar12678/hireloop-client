@@ -15,7 +15,7 @@ import {
   Briefcase,
   Users,
   LogOut,
-  Upload,
+  User,
   Menu,
   X,
 } from "lucide-react";
@@ -150,13 +150,24 @@ function SidebarContent({ user, onNavClick }) {
 
       {/* Bottom Section */}
       <div className="px-3 pb-6 pt-4 border-t border-white/[0.06] mt-2">
-        {/* Post Resume Button */}
-        <button
-          aria-label="Post Resume"
-          className="w-full h-11 bg-white text-black text-[15px] font-medium rounded-[10px] hover:bg-zinc-200 transition-colors duration-200 mb-2"
-        >
-          Post Resume
-        </button>
+        {/* Role-specific CTA: Post Resume (Seeker) / Profile (Recruiter/Admin) */}
+        {user?.role === "seeker" ? (
+          <button
+            aria-label="Post Resume"
+            className="w-full h-11 bg-white text-black text-[15px] font-medium rounded-[10px] hover:bg-zinc-200 transition-colors duration-200 mb-2"
+          >
+            Post Resume
+          </button>
+        ) : (
+          <Link
+            href={`/dashboard/${user?.role || "recruiter"}/settings`}
+            aria-label="Go to settings"
+            className="w-full flex items-center gap-3 h-11 px-3.5 rounded-[10px] text-[15px] font-medium text-[#A1A1AA] hover:bg-white/[0.04] hover:text-white transition-colors duration-200 mb-2"
+          >
+            <User size={18} aria-hidden="true" />
+            <span className="truncate">{user?.name || "Recruiter"}</span>
+          </Link>
+        )}
 
         {/* Logout */}
         <button

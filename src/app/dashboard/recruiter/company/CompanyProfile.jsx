@@ -1,79 +1,541 @@
 "use client";
 
-import React, { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import Link from "next/link";
 import {
-  Form,
-  Fieldset,
-  TextField,
-  TextArea,
-  Label,
-  Input,
-  FieldError,
-  Select,
-  ListBox,
-  Button,
-  toast,
-} from "@heroui/react";
-import {
-  ArrowUpToLine,
+  Building2,
+  Plus,
+  HelpCircle,
+  Headphones,
+  X,
+  Upload,
   Globe,
-  ChevronDown,
-  Pencil,
   MapPin,
-  Persons,
+  Users,
   Briefcase,
   Clock,
   ArrowRight,
-  Xmark,
-  CircleQuestion,
-  Headphones,
-} from "@gravity-ui/icons";
+  ExternalLink,
+  Edit,
+  MessageSquare,
+  ImageIcon,
+  Eye,
+} from "lucide-react";
 import { createCompany } from "@/lib/action/companies";
-import Link from "next/link";
 
-/* ─── shared form style constants ─── */
-const textInputClass =
-  "w-full bg-zinc-900/50 border border-zinc-800 text-white rounded-lg px-3 py-2.5 outline-none placeholder:text-zinc-600 focus:border-zinc-700 transition";
-const selectBoxClass = "w-full flex flex-col gap-1";
-const triggerClasses =
-  "w-full bg-zinc-900/50 border border-zinc-800 text-white rounded-lg px-3 py-2.5 flex items-center justify-between outline-none data-[hover=true]:border-zinc-700";
-const popoverClasses =
-  "bg-zinc-950 border border-zinc-800 rounded-lg p-1 shadow-xl min-w-[200px]";
-const listItemClasses =
-  "text-zinc-300 px-3 py-2 rounded-md cursor-pointer hover:bg-zinc-900 hover:text-white outline-none data-[focused=true]:bg-zinc-900";
-const textAreaClass =
-  "w-full bg-zinc-900/50 border border-zinc-800 text-white rounded-lg p-3 outline-none placeholder:text-zinc-600 focus:border-zinc-700 transition resize-none";
+/* ═══════════════════════════════════════════════════
+   MOCK DATA (Profile View)
+   ═══════════════════════════════════════════════════ */
 
-/* ─── mock data for the profile view ─── */
-const mockJobs = [
-  { title: "Senior Frontend Developer", type: "Full-time", location: "Remote", applicants: 42, posted: "2 days ago" },
-  { title: "Product Designer", type: "Full-time", location: "San Francisco, CA", applicants: 28, posted: "5 days ago" },
-  { title: "Backend Engineer", type: "Contract", location: "New York, NY", applicants: 35, posted: "1 week ago" },
+const MOCK_ACTIVE_ROLES = [
+  { title: "Senior Frontend Developer", type: "Full-time", location: "Remote", applicants: 42 },
+  { title: "Product Designer", type: "Full-time", location: "San Francisco, CA", applicants: 28 },
+  { title: "Backend Engineer", type: "Contract", location: "New York, NY", applicants: 35 },
+  { title: "DevOps Engineer", type: "Full-time", location: "Austin, TX", applicants: 19 },
 ];
 
-const mockTeam = [
+const MOCK_TEAM = [
   { name: "David Kim", role: "Engineering Manager", initials: "DK" },
   { name: "Lisa Zhang", role: "HR Lead", initials: "LZ" },
   { name: "Ryan Foster", role: "Senior Recruiter", initials: "RF" },
-  { name: "Maria Santos", role: "Design Lead", initials: "MS" },
 ];
 
-/* ════════════════════════════════════════════════════════════════
-   Component
-   ════════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════
+   REUSABLE COMPONENTS
+   ═══════════════════════════════════════════════════ */
 
+/* ─── Card (shared) ─── */
+function Card({ children, className = "" }) {
+  return (
+    <div className={`bg-[#1B1B1F] border border-white/[0.05] rounded-[14px] p-6 shadow-[0_2px_8px_rgba(0,0,0,0.18)] hover:border-white/[0.08] transition-all duration-200 ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+/* ─── FormField ─── */
+function FormField({ id, label, value, onChange, placeholder = "", type = "text", error }) {
+  return (
+    <div>
+      <label htmlFor={id} className="block text-[13px] text-[#71717A] mb-2 font-medium">
+        {label}
+      </label>
+      <input
+        id={id}
+        name={id}
+        type={type}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        aria-label={label}
+        aria-invalid={!!error}
+        className={`w-full h-10 bg-[#0E0E11] border rounded-[10px] px-3 text-[14px] text-white placeholder:text-[#71717A] outline-none transition-all duration-150 font-[family-name:var(--font-inter)] ${
+          error
+            ? "border-[#EF4444] focus:border-[#EF4444] focus:ring-1 focus:ring-[#EF4444]"
+            : "border-white/[0.08] focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6]"
+        }`}
+      />
+      {error && <p className="text-[12px] text-[#EF4444] mt-1">{error}</p>}
+    </div>
+  );
+}
+
+/* ─── Status Badge (Profile) ─── */
+function VerifiedBadge() {
+  return (
+    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[12px] font-medium bg-[#22C55E]/15 text-[#22C55E] border border-[#22C55E]/30">
+      Verified
+    </span>
+  );
+}
+
+/* ═══════════════════════════════════════════════════
+   1. EMPTY STATE
+   ═══════════════════════════════════════════════════ */
+function EmptyState({ onRegister }) {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[70vh] px-4">
+      <div className="text-center max-w-[520px]">
+        {/* Illustration */}
+        <div className="flex justify-center mb-8">
+          <div className="relative w-44 h-44">
+            {/* Radial glow */}
+            <div className="absolute inset-0 bg-white/[0.03] rounded-full blur-3xl" aria-hidden="true" />
+            {/* Card */}
+            <div className="relative w-36 h-36 mx-auto bg-[#1B1B1F] border border-white/[0.05] rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.4)] flex items-center justify-center -rotate-3">
+              <Building2 size={48} aria-hidden="true" className="text-[#3A3A40]" />
+            </div>
+            {/* Floating badge */}
+            <div className="absolute -bottom-2 -right-2 w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-lg" aria-hidden="true">
+              <Plus size={22} className="text-black" />
+            </div>
+          </div>
+        </div>
+
+        {/* Headline */}
+        <h2 className="text-[24px] font-semibold text-white tracking-tight mt-8">
+          Company not registered yet
+        </h2>
+
+        {/* Supporting Text */}
+        <p className="text-[14px] text-[#71717A] mt-3 leading-relaxed max-w-[420px] mx-auto">
+          Register your company to unlock powerful recruiting tools, post job listings, and build your employer brand on HireLoop.
+        </p>
+
+        {/* Buttons */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-6">
+          <button
+            onClick={onRegister}
+            aria-label="Register your company"
+            className="w-full sm:w-auto h-10 px-6 bg-white text-black rounded-[10px] text-[14px] font-medium shadow-[0_1px_3px_rgba(0,0,0,0.15)] hover:bg-zinc-200 hover:scale-[1.02] transition-all duration-150 ease-in-out cursor-pointer inline-flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11]"
+          >
+            Register your company
+            <ArrowRight size={16} aria-hidden="true" />
+          </button>
+          <Link
+            href="/plans"
+            aria-label="View FAQ"
+            className="w-full sm:w-auto h-10 px-6 bg-[#1B1B1F] border border-white/[0.06] text-[#A1A1AA] rounded-[10px] text-[14px] font-medium hover:bg-[#222228] hover:text-white transition-all duration-150 ease-in-out inline-flex items-center justify-center gap-2"
+          >
+            <HelpCircle size={16} aria-hidden="true" />
+            View FAQ
+          </Link>
+        </div>
+
+        {/* Footer Help */}
+        <p className="text-[12px] text-[#71717A] mt-10 flex items-center justify-center gap-1.5">
+          <Headphones size={14} aria-hidden="true" />
+          Need specialized assistance?{" "}
+          <button className="text-[#3B82F6] hover:underline cursor-pointer">Contact our enterprise support team</button>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════
+   2. REGISTER COMPANY MODAL
+   ═══════════════════════════════════════════════════ */
+function RegisterCompanyModal({ showModal, setShowModal, onSubmit, logoUrl, isUploading, handleLogoUpload, errors }) {
+  const modalRef = useRef(null);
+  const firstInputRef = useRef(null);
+
+  /* Focus trap + ESC */
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (e.key === "Escape") setShowModal(false);
+    },
+    [setShowModal]
+  );
+
+  useEffect(() => {
+    if (showModal) {
+      document.body.style.overflow = "hidden";
+      setTimeout(() => firstInputRef.current?.focus(), 100);
+      document.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      document.body.style.overflow = "";
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showModal, handleKeyDown]);
+
+  if (!showModal) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}
+      role="presentation"
+    >
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Register your company"
+        className="w-full max-w-[640px] mx-4 bg-[#1B1B1F] border border-white/[0.05] rounded-2xl shadow-[0_16px_48px_rgba(0,0,0,0.5)] p-6"
+        style={{ animation: "slideUp 200ms ease-out" }}
+      >
+        {/* Header */}
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="text-[18px] font-semibold text-white">Register Company</h3>
+            <p className="text-[14px] text-[#71717A] mt-1">Fill in the details to create your company profile.</p>
+          </div>
+          <button
+            onClick={() => setShowModal(false)}
+            aria-label="Close modal"
+            className="w-8 h-8 rounded-md flex items-center justify-center text-[#A1A1AA] hover:bg-[#222228] hover:text-white transition-all duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#3B82F6]"
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={onSubmit} className="mt-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <FormField id="companyName" label="Company Name" placeholder="Acme Inc." error={errors.companyName} />
+            <FormField id="websiteUrl" label="Website URL" type="url" placeholder="https://acme.com" error={errors.websiteUrl} />
+            <FormField id="industry" label="Industry" placeholder="Technology" error={errors.industry} />
+            <FormField id="location" label="Location" placeholder="San Francisco, CA" error={errors.location} />
+            <FormField id="employeeCount" label="Company Size" placeholder="1-10 employees" error={errors.employeeCount} />
+          </div>
+
+          {/* Logo Upload */}
+          <div className="mt-6">
+            <label className="block text-[13px] text-[#71717A] mb-2 font-medium">Company Logo</label>
+            <div className="border border-dashed border-white/[0.1] rounded-[12px] p-4 flex items-center gap-4 bg-[#0E0E11] hover:border-white/[0.15] transition-colors duration-150">
+              <div className="w-10 h-10 rounded-[10px] bg-[#3A3A40] flex items-center justify-center shrink-0">
+                {isUploading ? (
+                  <div className="w-5 h-5 border-2 border-[#3B82F6] border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Upload size={18} aria-hidden="true" className="text-[#71717A]" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[14px] text-[#A1A1AA]">{logoUrl ? "Logo uploaded" : "Upload your company logo"}</p>
+                <p className="text-[12px] text-[#71717A] mt-0.5">PNG, JPG up to 5MB</p>
+              </div>
+              <label className="h-8 px-3 bg-[#3A3A40] text-[#A1A1AA] rounded-md text-[13px] font-medium hover:bg-[#4A4A52] hover:text-white transition-all duration-150 cursor-pointer inline-flex items-center gap-2">
+                <ImageIcon size={14} aria-hidden="true" />
+                Browse
+                <input
+                  ref={firstInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  className="hidden"
+                  onChange={handleLogoUpload}
+                  aria-label="Choose logo file"
+                />
+              </label>
+            </div>
+            {errors.logo && <p className="text-[12px] text-[#EF4444] mt-1">{errors.logo}</p>}
+          </div>
+
+          {/* Description */}
+          <div className="mt-6">
+            <label htmlFor="description" className="block text-[13px] text-[#71717A] mb-2 font-medium">Brief Description</label>
+            <textarea
+              id="description"
+              name="description"
+              placeholder="Tell candidates what makes your company special..."
+              rows={4}
+              className="w-full min-h-[100px] bg-[#0E0E11] border border-white/[0.08] rounded-[10px] p-3 text-[14px] text-white placeholder:text-[#71717A] outline-none focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] transition-all duration-150 resize-y font-[family-name:var(--font-inter)] leading-relaxed"
+            />
+          </div>
+
+          {/* Footer */}
+          <div className="border-t border-white/[0.05] mt-6 pt-4 flex gap-4 justify-end">
+            <button
+              type="button"
+              onClick={() => setShowModal(false)}
+              aria-label="Cancel registration"
+              className="h-10 px-4 text-[#A1A1AA] rounded-[10px] text-[14px] font-medium hover:bg-[#222228] hover:text-white transition-all duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11]"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              aria-label="Submit company registration"
+              className="h-10 px-5 bg-white text-black rounded-[10px] text-[14px] font-medium hover:bg-zinc-200 shadow-[0_1px_3px_rgba(0,0,0,0.15)] transition-all duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11]"
+            >
+              Register Company
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Inline keyframe for slide-up */}
+      <style jsx>{`
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════
+   3. COMPANY PROFILE PAGE
+   ═══════════════════════════════════════════════════ */
+
+/* ─── Hero Section ─── */
+function CompanyHero({ company, onEdit }) {
+  return (
+    <div className="relative h-[220px] rounded-[14px] overflow-hidden">
+      {/* Background layers */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#3B82F6]/20 via-[#8B5CF6]/10 to-transparent" />
+      <div className="absolute inset-0 bg-black/50" />
+
+      {/* Content overlay */}
+      <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end gap-5">
+        {/* Logo */}
+        {company.logo ? (
+          <img
+            src={company.logo}
+            alt={`${company.name} logo`}
+            className="w-20 h-20 rounded-[14px] object-cover border border-white/[0.1] shadow-lg"
+          />
+        ) : (
+          <div className="w-20 h-20 rounded-[14px] bg-[#3A3A40] flex items-center justify-center text-white font-bold text-2xl border border-white/[0.1] shadow-lg shrink-0" aria-hidden="true">
+            {company.name?.[0] || "C"}
+          </div>
+        )}
+
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-3 mb-1">
+            <h1 className="text-[24px] font-semibold text-white tracking-tight truncate">
+              {company.name}
+            </h1>
+            <VerifiedBadge />
+          </div>
+          {company.tagline && (
+            <p className="text-[14px] text-[#A1A1AA] mt-1">{company.tagline}</p>
+          )}
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex gap-3 shrink-0">
+          <button
+            aria-label="Follow company"
+            className="h-10 px-4 bg-[#1B1B1F] border border-white/[0.06] text-[#A1A1AA] rounded-[10px] text-[14px] font-medium hover:bg-[#222228] hover:text-white transition-all duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11]"
+          >
+            Follow
+          </button>
+          {company.websiteUrl && (
+            <a
+              href={company.websiteUrl}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`Visit ${company.name} website`}
+              className="h-10 px-4 bg-white text-black rounded-[10px] text-[14px] font-medium hover:bg-zinc-200 shadow-[0_1px_3px_rgba(0,0,0,0.15)] transition-all duration-150 inline-flex items-center gap-2"
+            >
+              <Globe size={15} aria-hidden="true" />
+              Visit Website
+            </a>
+          )}
+          <button
+            onClick={onEdit}
+            aria-label="Edit company profile"
+            className="h-10 px-4 bg-[#1B1B1F] border border-white/[0.06] text-[#A1A1AA] rounded-[10px] text-[14px] font-medium hover:bg-[#222228] hover:text-white transition-all duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11] inline-flex items-center gap-2"
+          >
+            <Edit size={15} aria-hidden="true" />
+            Edit
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Company Stat Card ─── */
+function CompanyStatCard({ value, label }) {
+  return (
+    <div className="bg-[#0E0E11] border border-white/[0.05] rounded-[12px] p-4 hover:border-white/[0.08] transition-all duration-200">
+      <p className="text-[20px] font-semibold text-white">{value}</p>
+      <p className="text-[12px] text-[#71717A] mt-1">{label}</p>
+    </div>
+  );
+}
+
+/* ─── About Section ─── */
+function AboutSection({ company }) {
+  return (
+    <Card className="lg:col-span-2">
+      <h3 className="text-[18px] font-medium text-white mb-4">About</h3>
+      <p className="text-[14px] text-[#A1A1AA] leading-relaxed">
+        {company.description || `${company.name} is a leading company in the ${company.industry || "technology"} industry, based in ${company.location || "the United States"}. We are committed to building innovative products and fostering a collaborative work environment where talent thrives.`}
+      </p>
+
+      {/* Company Stats */}
+      <div className="grid grid-cols-3 gap-4 mt-6">
+        <CompanyStatCard value={MOCK_ACTIVE_ROLES.length} label="Active Roles" />
+        <CompanyStatCard value="128" label="Total Applicants" />
+        <CompanyStatCard value={company.employeeCount || "50-200"} label="Company Size" />
+      </div>
+
+      {/* Meta chips */}
+      <div className="flex flex-wrap gap-3 mt-6">
+        {company.industry && (
+          <span className="inline-flex items-center gap-1.5 h-[28px] px-3 rounded-full bg-[#3A3A40] text-[12px] text-[#A1A1AA]">
+            <Briefcase size={12} aria-hidden="true" />
+            {company.industry}
+          </span>
+        )}
+        {company.location && (
+          <span className="inline-flex items-center gap-1.5 h-[28px] px-3 rounded-full bg-[#3A3A40] text-[12px] text-[#A1A1AA]">
+            <MapPin size={12} aria-hidden="true" />
+            {company.location}
+          </span>
+        )}
+        {company.websiteUrl && (
+          <span className="inline-flex items-center gap-1.5 h-[28px] px-3 rounded-full bg-[#3A3A40] text-[12px] text-[#A1A1AA]">
+            <Globe size={12} aria-hidden="true" />
+            Website
+          </span>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+/* ─── Life at Company (Gallery) ─── */
+function LifeAtCompany() {
+  return (
+    <Card className="lg:col-span-2 mt-6">
+      <h3 className="text-[18px] font-medium text-white mb-4">Life at Company</h3>
+      <div className="grid grid-cols-2 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className="h-36 rounded-[12px] bg-[#3A3A40] flex items-center justify-center overflow-hidden hover:scale-[1.02] transition-transform duration-200"
+            aria-label={`Company culture photo ${i}`}
+          >
+            <ImageIcon size={28} aria-hidden="true" className="text-[#71717A]" />
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+/* ─── Active Roles Panel ─── */
+function ActiveRolesPanel({ roles }) {
+  return (
+    <Card>
+      <h3 className="text-[18px] font-medium text-white mb-4">Active Roles</h3>
+      <div>
+        {roles.map((role, idx) => (
+          <div
+            key={idx}
+            className={`flex justify-between items-start py-4 ${idx < roles.length - 1 ? "border-b border-white/[0.05]" : ""}`}
+          >
+            <div className="flex-1 min-w-0 mr-4">
+              <p className="text-[14px] font-medium text-white truncate">{role.title}</p>
+              <div className="flex items-center gap-3 mt-1">
+                <span className="text-[12px] text-[#71717A] inline-flex items-center gap-1">
+                  <Briefcase size={11} aria-hidden="true" />
+                  {role.type}
+                </span>
+                <span className="text-[12px] text-[#71717A] inline-flex items-center gap-1">
+                  <MapPin size={11} aria-hidden="true" />
+                  {role.location}
+                </span>
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              <button
+                aria-label={`Quick view applicants for ${role.title}`}
+                className="h-8 px-3 bg-white text-black rounded-md text-[12px] font-medium hover:bg-zinc-200 transition-all duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11] inline-flex items-center gap-1"
+              >
+                <Eye size={12} aria-hidden="true" />
+                {role.applicants}
+              </button>
+              <p className="text-[10px] text-[#71717A] mt-1 uppercase tracking-wide">Applicants</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+/* ─── Hiring Team Card ─── */
+function HiringTeamCard({ team }) {
+  return (
+    <Card className="mt-6">
+      <h3 className="text-[18px] font-medium text-white mb-4">Hiring Team</h3>
+      <div className="space-y-4">
+        {team.map((member, idx) => (
+          <div key={idx} className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-10 h-10 rounded-full bg-[#3A3A40] flex items-center justify-center text-white text-[13px] font-semibold shrink-0"
+                aria-hidden="true"
+              >
+                {member.initials}
+              </div>
+              <div>
+                <p className="text-[14px] font-medium text-white">{member.name}</p>
+                <p className="text-[12px] text-[#71717A]">{member.role}</p>
+              </div>
+            </div>
+            <button
+              aria-label={`Message ${member.name}`}
+              className="w-8 h-8 rounded-md flex items-center justify-center text-[#71717A] hover:text-white hover:bg-[#222228] transition-all duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#3B82F6]"
+            >
+              <MessageSquare size={16} aria-hidden="true" />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Message All */}
+      <button
+        aria-label="Message entire hiring team"
+        className="w-full mt-4 h-10 border border-white/[0.06] rounded-[10px] text-[14px] text-[#A1A1AA] hover:bg-[#222228] hover:text-white transition-all duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11] inline-flex items-center justify-center gap-2"
+      >
+        <MessageSquare size={15} aria-hidden="true" />
+        Message Team
+      </button>
+    </Card>
+  );
+}
+
+/* ═══════════════════════════════════════════════════
+   MAIN COMPONENT — 3 States
+   ═══════════════════════════════════════════════════ */
 export default function CompanyProfile({ recruiter, recruiterCompany }) {
   const [company, setCompany] = useState(recruiterCompany);
-  const [isEditing, setIsEditing] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [errors, setErrors] = useState({});
   const [logoUrl, setLogoUrl] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
-  /* ── upload handler ── */
+  /* ── Logo Upload Handler ── */
   const handleLogoUpload = async (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
       setErrors((p) => ({ ...p, logo: "File size exceeds 5MB limit" }));
@@ -84,10 +546,7 @@ export default function CompanyProfile({ recruiter, recruiterCompany }) {
     formData.append("image", file);
     try {
       const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMAGE_UPLOAD_API;
-      const res = await fetch(
-        `https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`,
-        { method: "POST", body: formData }
-      );
+      const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: "POST", body: formData });
       const data = await res.json();
       if (data.success) {
         setLogoUrl(data.data.url);
@@ -102,798 +561,108 @@ export default function CompanyProfile({ recruiter, recruiterCompany }) {
     }
   };
 
-  /* ── submit handler ── */
+  /* ── Submit Handler ── */
   const handleSubmit = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const companyName = fd.get("companyName");
     const websiteUrl = fd.get("websiteUrl");
-    const industry = fd.get("industry");
     const location = fd.get("location");
-    const employeeCount = fd.get("employeeCount");
-    const description = fd.get("description");
 
     const newErrors = {};
     if (!companyName) newErrors.companyName = "Company name is required";
     if (!websiteUrl) newErrors.websiteUrl = "Website link is required";
     if (!location) newErrors.location = "Location is required";
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
+    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
 
     const payload = {
       name: companyName,
       websiteUrl,
-      industry: industry || "Technology",
+      industry: fd.get("industry") || "Technology",
       location,
-      employeeCount: employeeCount || "1-10 employees",
-      description,
-      logo: logoUrl || (company ? company.logo : ""),
-      status: company?.status || "Pending",
-      recruiterId: recruiter.id,
+      employeeCount: fd.get("employeeCount") || "50-200",
+      description: fd.get("description"),
+      tagline: `Innovation at its best`,
+      logo: logoUrl || "",
+      status: "Active",
+      recruiterId: recruiter?.id,
     };
     setCompany(payload);
-
-    const result = await createCompany(payload);
-    if (result.insertedId) {
-      const saved = { ...payload, _id: result.insertedId };
-      setCompany(saved);
-      toast.success("Company profile created successfully!");
+    try {
+      const result = await createCompany(payload);
+      if (result?.insertedId) {
+        setCompany({ ...payload, _id: result.insertedId });
+      }
+    } catch (err) {
+      console.error("Failed to create company:", err);
     }
     setErrors({});
-    setIsEditing(false);
     setShowModal(false);
   };
 
-  /* ═══════════════════════════════════════════════════════════════
-     VIEW 1 — Empty State (no company registered)
-     ═══════════════════════════════════════════════════════════════ */
-  if (!company?._id && !isEditing && !showModal) {
+  /* ═══════════════════════════════════════════════════
+     STATE 1: Empty (no company)
+     ═══════════════════════════════════════════════════ */
+  if (!company?._id && !showModal) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] px-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-          className="text-center max-w-md space-y-8"
-        >
-          {/* Illustration */}
-          <div className="flex justify-center">
-            <div className="relative w-24 h-28">
-              <div className="absolute inset-0 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center justify-center">
-                <svg
-                  width="40"
-                  height="40"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.2"
-                  className="text-zinc-600"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
-                  />
-                </svg>
-              </div>
-              <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-xl bg-[#00D4AA] flex items-center justify-center shadow-lg shadow-[#00D4AA]/20">
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="black"
-                  strokeWidth="2.5"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          {/* Text */}
-          <div className="space-y-3">
-            <h2 className="text-2xl font-bold text-white">
-              Company not registered yet
-            </h2>
-            <p className="text-sm text-zinc-400 leading-relaxed">
-              Register your company to unlock powerful recruiting tools, post job
-              listings, and build your employer brand on HireLoop.
-            </p>
-          </div>
-
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <button
-              onClick={() => setShowModal(true)}
-              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-white text-black font-semibold text-sm hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
-            >
-              Register your company
-              <ArrowRight className="size-4" />
-            </button>
-            <Link
-              href="/plans"
-              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-zinc-800 text-white font-semibold text-sm hover:bg-zinc-700 transition-colors flex items-center justify-center gap-2"
-            >
-              <CircleQuestion className="size-4" />
-              View FAQ
-            </Link>
-          </div>
-
-          {/* Support */}
-          <p className="text-xs text-zinc-600 flex items-center justify-center gap-1.5">
-            <Headphones className="size-3.5" />
-            Need specialized assistance?{" "}
-            <button className="text-[#00D4AA] hover:underline">
-              Contact our enterprise support team
-            </button>
-          </p>
-        </motion.div>
-
-        {/* ── Register Company Modal ── */}
-        <AnimatePresence>
-          {showModal && (
-            <RegisterCompanyModal
-              showModal={showModal}
-              setShowModal={setShowModal}
-              errors={errors}
-              setErrors={setErrors}
-              logoUrl={logoUrl}
-              setLogoUrl={setLogoUrl}
-              isUploading={isUploading}
-              handleLogoUpload={handleLogoUpload}
-              handleSubmit={handleSubmit}
-            />
-          )}
-        </AnimatePresence>
-      </div>
+      <>
+        <EmptyState onRegister={() => setShowModal(true)} />
+        <RegisterCompanyModal
+          showModal={showModal}
+          setShowModal={setShowModal}
+          onSubmit={handleSubmit}
+          logoUrl={logoUrl}
+          isUploading={isUploading}
+          handleLogoUpload={handleLogoUpload}
+          errors={errors}
+        />
+      </>
     );
   }
 
-  /* ═══════════════════════════════════════════════════════════════
-     VIEW 2 — Company Profile (registered)
-     ═══════════════════════════════════════════════════════════════ */
-  if (company && !isEditing) {
-    return (
-      <div className="space-y-6">
-        {/* ── Hero Banner ── */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
-          className="relative h-48 md:h-56 rounded-2xl overflow-hidden"
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-[#00D4AA]/20 via-[#6366F1]/20 to-[#00D4AA]/10" />
-          <div className="absolute inset-0 bg-[#18181b]/60" />
-          {/* Pattern overlay */}
-          <div
-            className="absolute inset-0 opacity-[0.03]"
-            style={{
-              backgroundImage: `radial-gradient(circle at 1px 1px, white 1px, transparent 0)`,
-              backgroundSize: "24px 24px",
-            }}
-          />
+  /* ═══════════════════════════════════════════════════
+     STATE 3: Company Profile (registered)
+     ═══════════════════════════════════════════════════ */
+  const displayCompany = company || {
+    name: "TechFlow Inc.",
+    tagline: "Building the future of recruitment technology",
+    industry: "Technology",
+    location: "San Francisco, CA",
+    websiteUrl: "https://techflow.com",
+    employeeCount: "50-200",
+    description: "TechFlow is a leading recruitment technology company that connects top talent with innovative companies. Our AI-powered platform streamlines the hiring process, making it faster and more efficient for both employers and candidates. We believe in building a world where the right opportunity finds the right person, every time.",
+  };
 
-          {/* Company info overlay */}
-          <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end gap-5">
-            {company.logo ? (
-              <img
-                src={company.logo}
-                alt={company.name}
-                className="w-20 h-20 rounded-2xl object-cover border-2 border-[#F59E0B]/40 shadow-xl"
-              />
-            ) : (
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-white font-bold text-2xl border-2 border-amber-400/40 shadow-xl">
-                {company.name?.[0] || "C"}
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-3 mb-1">
-                <h1 className="text-2xl font-bold text-white truncate">
-                  {company.name}
-                </h1>
-                {company.industry && (
-                  <span className="px-3 py-1 rounded-full bg-white/10 text-white/80 text-xs font-medium border border-white/10">
-                    {company.industry}
-                  </span>
-                )}
-              </div>
-              {company.websiteUrl && (
-                <a
-                  href={company.websiteUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-sm text-zinc-300/70 hover:text-white transition-colors flex items-center gap-1"
-                >
-                  <Globe className="size-3.5" />
-                  {company.websiteUrl}
-                </a>
-              )}
-            </div>
-            <button
-              onClick={() => {
-                setLogoUrl(company.logo);
-                setIsEditing(true);
-              }}
-              className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 border border-white/10 text-white text-sm font-medium hover:bg-white/15 transition-colors backdrop-blur-sm"
-            >
-              <Pencil className="size-4" />
-              Edit Profile
-            </button>
-          </div>
-        </motion.div>
-
-        {/* ── About + Stats ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-          className="bg-[#18181b] border border-zinc-800/60 rounded-2xl p-6 space-y-5"
-        >
-          <h3 className="text-base font-semibold text-white">About</h3>
-          <p className="text-sm text-zinc-400 leading-relaxed">
-            {company.description ||
-              "We are a forward-thinking company committed to innovation and excellence. Our team is passionate about building products that make a difference."}
-          </p>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03]">
-              <div className="w-9 h-9 rounded-lg bg-[#00D4AA]/10 flex items-center justify-center">
-                <Briefcase className="size-4 text-[#00D4AA]" />
-              </div>
-              <div>
-                <p className="text-lg font-bold text-white">
-                  {company.employeeCount || "—"}
-                </p>
-                <p className="text-[11px] text-zinc-500">Employees</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03]">
-              <div className="w-9 h-9 rounded-lg bg-[#6366F1]/10 flex items-center justify-center">
-                <MapPin className="size-4 text-[#6366F1]" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-white">
-                  {company.location || "—"}
-                </p>
-                <p className="text-[11px] text-zinc-500">Location</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03]">
-              <div className="w-9 h-9 rounded-lg bg-[#F59E0B]/10 flex items-center justify-center">
-                <Persons className="size-4 text-[#F59E0B]" />
-              </div>
-              <div>
-                <p className="text-lg font-bold text-white">18</p>
-                <p className="text-[11px] text-zinc-500">Open Roles</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03]">
-              <div className="w-9 h-9 rounded-lg bg-[#10B981]/10 flex items-center justify-center">
-                <Clock className="size-4 text-[#10B981]" />
-              </div>
-              <div>
-                <p className="text-lg font-bold text-white">5 yrs</p>
-                <p className="text-[11px] text-zinc-500">Founded</p>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* ── Life at Company (Image Grid) ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-          className="bg-[#18181b] border border-zinc-800/60 rounded-2xl p-6 space-y-4"
-        >
-          <h3 className="text-base font-semibold text-white">Life at {company.name}</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              "bg-gradient-to-br from-[#00D4AA]/20 to-[#6366F1]/20",
-              "bg-gradient-to-br from-[#F59E0B]/20 to-[#EF4444]/20",
-              "bg-gradient-to-br from-[#6366F1]/20 to-[#00D4AA]/20",
-              "bg-gradient-to-br from-[#10B981]/20 to-[#F59E0B]/20",
-            ].map((bg, i) => (
-              <div
-                key={i}
-                className={`${bg} rounded-xl aspect-[4/3] flex items-center justify-center border border-white/[0.04]`}
-              >
-                <div className="text-center">
-                  <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-2">
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      className="text-white/50"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5a1.5 1.5 0 001.5-1.5V4.5a1.5 1.5 0 00-1.5-1.5H3.75a1.5 1.5 0 00-1.5 1.5v15a1.5 1.5 0 001.5 1.5z"
-                      />
-                    </svg>
-                  </div>
-                  <p className="text-[10px] text-white/30 font-medium">
-                    {["Office", "Team Event", "Workshop", "Culture"][i]}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* ── Active Roles ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
-          className="bg-[#18181b] border border-zinc-800/60 rounded-2xl p-6 space-y-4"
-        >
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-semibold text-white">Active Roles</h3>
-            <Link
-              href="/dashboard/recruiter/jobs"
-              className="text-xs font-medium text-[#00D4AA] hover:text-[#00D4AA]/80 flex items-center gap-1 transition-colors"
-            >
-              View All <ArrowRight className="size-3.5" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {mockJobs.map((job, i) => (
-              <div
-                key={i}
-                className="p-4 rounded-xl bg-white/[0.03] border border-zinc-800/40 hover:border-zinc-700/60 transition-colors group"
-              >
-                <h4 className="text-sm font-semibold text-white mb-2 group-hover:text-[#00D4AA] transition-colors">
-                  {job.title}
-                </h4>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  <span className="px-2 py-0.5 rounded-md bg-white/[0.05] text-zinc-400 text-[11px] font-medium">
-                    {job.type}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/[0.05] text-zinc-400 text-[11px] font-medium">
-                    {job.location}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-zinc-500">
-                    {job.applicants} applicants
-                  </span>
-                  <span className="text-[11px] text-zinc-600">{job.posted}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* ── Hiring Team ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.4 }}
-          className="bg-[#18181b] border border-zinc-800/60 rounded-2xl p-6 space-y-4"
-        >
-          <h3 className="text-base font-semibold text-white">Hiring Team</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {mockTeam.map((member, i) => (
-              <div
-                key={i}
-                className="flex flex-col items-center text-center p-4 rounded-xl bg-white/[0.02] border border-zinc-800/30"
-              >
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#00D4AA]/30 to-[#6366F1]/30 flex items-center justify-center text-white font-bold text-sm mb-3 ring-2 ring-white/[0.06]">
-                  {member.initials}
-                </div>
-                <h4 className="text-sm font-semibold text-white">
-                  {member.name}
-                </h4>
-                <p className="text-xs text-zinc-500 mt-0.5">{member.role}</p>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
-
-  /* ═══════════════════════════════════════════════════════════════
-     VIEW 3 — Edit Form (inline)
-     ═══════════════════════════════════════════════════════════════ */
   return (
     <>
-      <div className="max-w-3xl mx-auto my-8 bg-zinc-950 p-8 border border-zinc-900 rounded-xl">
-        <Form
-          onSubmit={handleSubmit}
-          className="space-y-8"
-          validationErrors={errors}
-          validationBehavior="aria"
-        >
-          <Fieldset className="space-y-6 w-full">
-            <legend className="text-xl font-semibold text-zinc-200 border-b border-zinc-900 w-full pb-3 mb-2">
-              {company ? "Update Company Profile" : "Register New Company"}
-            </legend>
+      <div className="space-y-6">
+        {/* Hero */}
+        <CompanyHero company={displayCompany} onEdit={() => setShowModal(true)} />
 
-            {/* ROW 1 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <TextField
-                name="companyName"
-                defaultValue={company?.name || ""}
-                isInvalid={!!errors.companyName}
-                className="flex flex-col gap-1 w-full"
-              >
-                <Label className="text-zinc-400 font-medium text-sm">Company Name</Label>
-                <Input placeholder="e.g. Acme Corp" className={textInputClass} />
-                {errors.companyName && (
-                  <FieldError className="text-xs text-danger mt-1">{errors.companyName}</FieldError>
-                )}
-              </TextField>
+        {/* Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left (2 col) */}
+          <AboutSection company={displayCompany} />
+          <LifeAtCompany />
 
-              <Select
-                className={selectBoxClass}
-                name="industry"
-                defaultSelectedKeys={[company?.industry || "technology"]}
-              >
-                <Label className="text-zinc-400 font-medium text-sm mb-1 block">Industry / Category</Label>
-                <Select.Trigger className={triggerClasses}>
-                  <Select.Value className="text-white placeholder:text-zinc-600" />
-                  <Select.Indicator>
-                    <ChevronDown size={16} className="text-zinc-500" />
-                  </Select.Indicator>
-                </Select.Trigger>
-                <Select.Popover className={popoverClasses}>
-                  <ListBox className="outline-none">
-                    {["Technology", "Design", "Marketing", "Finance", "Healthcare", "Education"].map((v) => (
-                      <ListBox.Item key={v.toLowerCase()} id={v.toLowerCase()} className={listItemClasses} textValue={v}>
-                        {v}
-                      </ListBox.Item>
-                    ))}
-                  </ListBox>
-                </Select.Popover>
-              </Select>
-            </div>
-
-            {/* ROW 2 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <TextField
-                name="websiteUrl"
-                defaultValue={company?.websiteUrl || ""}
-                isInvalid={!!errors.websiteUrl}
-                className="flex flex-col gap-1 w-full"
-              >
-                <Label className="text-zinc-400 font-medium text-sm">Website URL</Label>
-                <div className="relative flex items-center">
-                  <span className="absolute left-3 text-zinc-600 text-sm font-medium select-none pointer-events-none border-r border-zinc-800 pr-2">
-                    https://
-                  </span>
-                  <Input placeholder="www.company.com" className={`${textInputClass} pl-20`} />
-                </div>
-                {errors.websiteUrl && (
-                  <FieldError className="text-xs text-danger mt-1">{errors.websiteUrl}</FieldError>
-                )}
-              </TextField>
-
-              <TextField
-                name="location"
-                defaultValue={company?.location || ""}
-                isInvalid={!!errors.location}
-                className="flex flex-col gap-1 w-full"
-              >
-                <Label className="text-zinc-400 font-medium text-sm">Location</Label>
-                <div className="relative flex items-center">
-                  <Globe size={16} className="absolute left-3 text-zinc-600 pointer-events-none z-10" />
-                  <Input placeholder="City, Country" className={`${textInputClass} pl-10`} />
-                </div>
-                {errors.location && (
-                  <FieldError className="text-xs text-danger mt-1">{errors.location}</FieldError>
-                )}
-              </TextField>
-            </div>
-
-            {/* ROW 3 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-              <Select
-                className={selectBoxClass}
-                name="employeeCount"
-                defaultSelectedKeys={[company?.employeeCount || "1-10"]}
-              >
-                <Label className="text-zinc-400 font-medium text-sm mb-1 block">Employee Count Range</Label>
-                <Select.Trigger className={triggerClasses}>
-                  <Select.Value className="text-white" />
-                  <Select.Indicator>
-                    <ChevronDown size={16} className="text-zinc-500" />
-                  </Select.Indicator>
-                </Select.Trigger>
-                <Select.Popover className={popoverClasses}>
-                  <ListBox className="outline-none">
-                    {[
-                      { id: "1-10", label: "1-10 employees" },
-                      { id: "11-50", label: "11-50 employees" },
-                      { id: "51-200", label: "51-200 employees" },
-                      { id: "201+", label: "201+ employees" },
-                    ].map((item) => (
-                      <ListBox.Item key={item.id} id={item.id} className={listItemClasses} textValue={item.label}>
-                        {item.label}
-                      </ListBox.Item>
-                    ))}
-                  </ListBox>
-                </Select.Popover>
-              </Select>
-
-              <div className="flex flex-col gap-1 w-full">
-                <span className="text-zinc-400 font-medium text-sm">Company Logo</span>
-                <div className="flex items-center gap-4 mt-1">
-                  <label className="w-14 h-14 border border-dashed border-zinc-700 hover:border-zinc-500 bg-zinc-900/40 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors group relative overflow-hidden">
-                    <input type="file" accept="image/png, image/jpeg" onChange={handleLogoUpload} className="hidden" />
-                    {logoUrl ? (
-                      <img src={logoUrl} alt="Logo Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <ArrowUpToLine size={18} className="text-zinc-400 group-hover:text-zinc-200 transition-colors" />
-                    )}
-                  </label>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-zinc-300">
-                      {isUploading ? "Uploading file..." : "Upload image"}
-                    </span>
-                    <span className="text-xs text-zinc-600 mt-0.5">PNG, JPG up to 5MB</span>
-                    {errors.logo && <span className="text-xs text-danger mt-1">{errors.logo}</span>}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ROW 4 */}
-            <TextField
-              name="description"
-              defaultValue={company?.description || ""}
-              className="flex flex-col gap-1 w-full"
-            >
-              <Label className="text-zinc-400 font-medium text-sm">Brief Description</Label>
-              <TextArea
-                placeholder="Tell us about your company's mission and culture..."
-                rows={4}
-                className={textAreaClass}
-              />
-            </TextField>
-          </Fieldset>
-
-          <div className="flex justify-end gap-3 pt-5 border-t border-zinc-900 w-full">
-            <Button
-              type="button"
-              variant="bordered"
-              onPress={() => {
-                setIsEditing(false);
-                setShowModal(false);
-              }}
-              className="border-zinc-800 text-zinc-400 hover:bg-zinc-900 rounded-lg px-5 font-medium h-11"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              className="bg-white text-black font-semibold hover:bg-zinc-200 rounded-lg px-6 transition-colors h-11"
-            >
-              {company ? "Save Updates" : "Register Company"}
-            </Button>
+          {/* Right (1 col) */}
+          <div>
+            <ActiveRolesPanel roles={MOCK_ACTIVE_ROLES} />
+            <HiringTeamCard team={MOCK_TEAM} />
           </div>
-        </Form>
+        </div>
       </div>
 
-      {/* Modal overlay for editing (keeps edit within page context) */}
-    </>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   Register Company Modal
-   ═══════════════════════════════════════════════════════════════ */
-
-function RegisterCompanyModal({
-  showModal,
-  setShowModal,
-  errors,
-  setErrors,
-  logoUrl,
-  setLogoUrl,
-  isUploading,
-  handleLogoUpload,
-  handleSubmit,
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-    >
-      {/* Backdrop */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={() => setShowModal(false)}
+      {/* Edit Modal (when editing) */}
+      <RegisterCompanyModal
+        showModal={showModal}
+        setShowModal={setShowModal}
+        onSubmit={handleSubmit}
+        logoUrl={logoUrl}
+        isUploading={isUploading}
+        handleLogoUpload={handleLogoUpload}
+        errors={errors}
       />
-
-      {/* Modal */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="relative w-full max-w-[60%] max-h-[90vh] overflow-y-auto bg-[#18181b] border border-zinc-800/60 rounded-2xl p-8 shadow-2xl"
-      >
-        {/* Close button */}
-        <button
-          onClick={() => setShowModal(false)}
-          className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-white/[0.05] flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
-        >
-          <Xmark className="size-4" />
-        </button>
-
-        <Form
-          onSubmit={handleSubmit}
-          className="space-y-8"
-          validationErrors={errors}
-          validationBehavior="aria"
-        >
-          <Fieldset className="space-y-6 w-full">
-            <legend className="text-xl font-semibold text-white border-b border-zinc-800/60 w-full pb-3 mb-2">
-              Register New Company
-            </legend>
-
-            {/* ROW 1 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <TextField
-                name="companyName"
-                isInvalid={!!errors.companyName}
-                className="flex flex-col gap-1 w-full"
-              >
-                <Label className="text-zinc-400 font-medium text-sm">Company Name</Label>
-                <Input placeholder="e.g. Acme Corp" className={textInputClass} />
-                {errors.companyName && (
-                  <FieldError className="text-xs text-danger mt-1">{errors.companyName}</FieldError>
-                )}
-              </TextField>
-
-              <Select className={selectBoxClass} name="industry" defaultSelectedKeys={["technology"]}>
-                <Label className="text-zinc-400 font-medium text-sm mb-1 block">Industry / Category</Label>
-                <Select.Trigger className={triggerClasses}>
-                  <Select.Value className="text-white placeholder:text-zinc-600" />
-                  <Select.Indicator>
-                    <ChevronDown size={16} className="text-zinc-500" />
-                  </Select.Indicator>
-                </Select.Trigger>
-                <Select.Popover className={popoverClasses}>
-                  <ListBox className="outline-none">
-                    {["Technology", "Design", "Marketing", "Finance", "Healthcare", "Education"].map((v) => (
-                      <ListBox.Item key={v.toLowerCase()} id={v.toLowerCase()} className={listItemClasses} textValue={v}>
-                        {v}
-                      </ListBox.Item>
-                    ))}
-                  </ListBox>
-                </Select.Popover>
-              </Select>
-            </div>
-
-            {/* ROW 2 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <TextField
-                name="websiteUrl"
-                isInvalid={!!errors.websiteUrl}
-                className="flex flex-col gap-1 w-full"
-              >
-                <Label className="text-zinc-400 font-medium text-sm">Website URL</Label>
-                <div className="relative flex items-center">
-                  <span className="absolute left-3 text-zinc-600 text-sm font-medium select-none pointer-events-none border-r border-zinc-800 pr-2">
-                    https://
-                  </span>
-                  <Input placeholder="www.company.com" className={`${textInputClass} pl-20`} />
-                </div>
-                {errors.websiteUrl && (
-                  <FieldError className="text-xs text-danger mt-1">{errors.websiteUrl}</FieldError>
-                )}
-              </TextField>
-
-              <TextField
-                name="location"
-                isInvalid={!!errors.location}
-                className="flex flex-col gap-1 w-full"
-              >
-                <Label className="text-zinc-400 font-medium text-sm">Location</Label>
-                <div className="relative flex items-center">
-                  <Globe size={16} className="absolute left-3 text-zinc-600 pointer-events-none z-10" />
-                  <Input placeholder="City, Country" className={`${textInputClass} pl-10`} />
-                </div>
-                {errors.location && (
-                  <FieldError className="text-xs text-danger mt-1">{errors.location}</FieldError>
-                )}
-              </TextField>
-            </div>
-
-            {/* ROW 3 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-              <Select className={selectBoxClass} name="employeeCount" defaultSelectedKeys={["1-10"]}>
-                <Label className="text-zinc-400 font-medium text-sm mb-1 block">Employee Count Range</Label>
-                <Select.Trigger className={triggerClasses}>
-                  <Select.Value className="text-white" />
-                  <Select.Indicator>
-                    <ChevronDown size={16} className="text-zinc-500" />
-                  </Select.Indicator>
-                </Select.Trigger>
-                <Select.Popover className={popoverClasses}>
-                  <ListBox className="outline-none">
-                    {[
-                      { id: "1-10", label: "1-10 employees" },
-                      { id: "11-50", label: "11-50 employees" },
-                      { id: "51-200", label: "51-200 employees" },
-                      { id: "201+", label: "201+ employees" },
-                    ].map((item) => (
-                      <ListBox.Item key={item.id} id={item.id} className={listItemClasses} textValue={item.label}>
-                        {item.label}
-                      </ListBox.Item>
-                    ))}
-                  </ListBox>
-                </Select.Popover>
-              </Select>
-
-              <div className="flex flex-col gap-1 w-full">
-                <span className="text-zinc-400 font-medium text-sm">Company Logo</span>
-                <div className="flex items-center gap-4 mt-1">
-                  <label className="w-14 h-14 border border-dashed border-zinc-700 hover:border-zinc-500 bg-zinc-900/40 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors group relative overflow-hidden">
-                    <input type="file" accept="image/png, image/jpeg" onChange={handleLogoUpload} className="hidden" />
-                    {logoUrl ? (
-                      <img src={logoUrl} alt="Logo Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <ArrowUpToLine size={18} className="text-zinc-400 group-hover:text-zinc-200 transition-colors" />
-                    )}
-                  </label>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-zinc-300">
-                      {isUploading ? "Uploading file..." : "Upload image"}
-                    </span>
-                    <span className="text-xs text-zinc-600 mt-0.5">PNG, JPG up to 5MB</span>
-                    {errors.logo && <span className="text-xs text-danger mt-1">{errors.logo}</span>}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ROW 4 — Full Width */}
-            <TextField name="description" className="flex flex-col gap-1 w-full">
-              <Label className="text-zinc-400 font-medium text-sm">Brief Description</Label>
-              <TextArea
-                placeholder="Tell us about your company's mission and culture..."
-                rows={4}
-                className={textAreaClass}
-              />
-            </TextField>
-          </Fieldset>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-5 border-t border-zinc-800/60 w-full">
-            <Button
-              type="button"
-              variant="bordered"
-              onPress={() => setShowModal(false)}
-              className="border-zinc-800 text-zinc-400 hover:bg-zinc-900 rounded-lg px-5 font-medium h-11"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              className="bg-white text-black font-semibold hover:bg-zinc-200 rounded-lg px-6 transition-colors h-11"
-            >
-              Register Company
-            </Button>
-          </div>
-        </Form>
-      </motion.div>
-    </motion.div>
+    </>
   );
 }
