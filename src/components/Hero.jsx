@@ -97,7 +97,6 @@ function Particles() {
 /* ─── Trending tags ─── */
 
 const TRENDING_TAGS = [
-  "Trending Position",
   "Product Designer",
   "AI Engineering",
   "Dev-ops Engineer",
@@ -233,7 +232,7 @@ export default function Hero() {
             custom={0.12}
             initial="hidden"
             animate="visible"
-            className="text-[36px] sm:text-[44px] lg:text-[56px] font-extrabold text-white leading-[1.1] tracking-tight mb-6"
+            className="text-[36px] sm:text-[44px] lg:text-[56px] font-extrabold text-white leading-[1.1] tracking-tight mb-6 font-[family-name:var(--font-manrope)]"
           >
             Find Your{" "}
             <span

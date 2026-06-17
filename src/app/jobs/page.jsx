@@ -12,7 +12,15 @@ export default async function Page({ searchParams }) {
   const queryString = querySearch.toString();
 
   // Fetched server-side on the initial request
-  const { jobs, total } = await getJobs(queryString);
+  let jobs = [];
+  let total = 0;
+  try {
+    const data = await getJobs(queryString);
+    jobs = data?.jobs || [];
+    total = data?.total || 0;
+  } catch (err) {
+    console.error("Failed to fetch jobs:", err.message);
+  }
 
   return (
     <div className="w-full min-h-screen bg-[#0a0a0f] p-6 md:p-12 text-white">
@@ -21,16 +29,13 @@ export default async function Page({ searchParams }) {
           Browse Jobs
         </h1>
         <p className="text-zinc-500 mt-2">
-          Find your next opportunity from {total?.toLocaleString() || "thousands of"} open positions.
+          Find your next opportunity from{" "}
+          {total?.toLocaleString() || "thousands of"} open positions.
         </p>
       </div>
 
       {/* Pass data to the Client Wrapper to handle filtering interactivity */}
-      <JobListingContainer
-        filters={filterObj}
-        jobs={jobs || []}
-        total={total}
-      />
+      <JobListingContainer filters={filterObj} jobs={jobs} total={total} />
     </div>
   );
 }

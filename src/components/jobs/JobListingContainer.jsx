@@ -29,7 +29,9 @@ export default function JobListingContainer({ jobs, filters, total }) {
     filters.jobCategory || "all",
   );
   const [isRemoteOnly, setIsRemoteOnly] = useState(filters.isRemote || false);
-  const [page, setPage] = useState(filters.page ? parseInt(filters.page, 10) : 1);
+  const [page, setPage] = useState(
+    filters.page ? parseInt(filters.page, 10) : 1,
+  );
   const [sortBy, setSortBy] = useState("recent");
   const [sortOpen, setSortOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -37,7 +39,7 @@ export default function JobListingContainer({ jobs, filters, total }) {
   const sortRef = useRef(null);
   const router = useRouter();
 
-  const totalItems = total;
+  const totalItems = total || 0;
   const itemsPerPage = 4;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
@@ -115,7 +117,15 @@ export default function JobListingContainer({ jobs, filters, total }) {
 
     const path = `?${sp.toString()}`;
     router.push(path);
-  }, [router, searchQuery, locationFilter, selectedType, selectedCategory, isRemoteOnly, page]);
+  }, [
+    router,
+    searchQuery,
+    locationFilter,
+    selectedType,
+    selectedCategory,
+    isRemoteOnly,
+    page,
+  ]);
 
   const activeSortLabel =
     SORT_OPTIONS.find((o) => o.id === sortBy)?.label || "Most Recent";
@@ -138,10 +148,21 @@ export default function JobListingContainer({ jobs, filters, total }) {
         <div className="relative sm:w-[220px]">
           <svg
             className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none"
-            fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"
+            />
           </svg>
           <input
             type="text"
