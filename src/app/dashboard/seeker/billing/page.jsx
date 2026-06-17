@@ -1,12 +1,28 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Card } from "@heroui/react";
-import { CreditCard, ArrowUpRight, Check } from "@gravity-ui/icons";
+import { useSession } from "@/lib/auth-client";
 import { getPaymentHistory } from "@/lib/api-client/subscriptions";
-import Link from "next/link";
+import {
+  Check,
+  FileDown,
+  Plus,
+  CreditCard,
+  Shield,
+  Headphones,
+  Search,
+  Mail,
+  Bell,
+  ChevronUp,
+  ChevronDown,
+} from "lucide-react";
+
+/* ═══════════════════════════════════════════════════
+   HELPERS
+   ═══════════════════════════════════════════════════ */
 
 const formatRelativeTime = (dateString) => {
+  if (!dateString) return "N/A";
   const now = new Date();
   const date = new Date(dateString);
   const diffInMs = now - date;
@@ -18,7 +34,283 @@ const formatRelativeTime = (dateString) => {
   return diffInWeeks === 1 ? "1 week ago" : `${diffInWeeks} weeks ago`;
 };
 
-const SeekerBillingPage = () => {
+const formatDate = (dateString) => {
+  if (!dateString) return "N/A";
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
+/* ─── Plan Features Config ─── */
+const PLAN_FEATURES = {
+  Free: [
+    "Browse & save up to 10 jobs",
+    "Apply to up to 3 jobs per month",
+    "Basic profile page",
+    "Standard email alerts",
+  ],
+  Pro: [
+    "Apply to up to 30 jobs per month",
+    "Unlimited saved jobs",
+    "Advanced application tracking",
+    "Comprehensive salary insights",
+  ],
+  Premium: [
+    "Everything in Pro + Unlimited apps",
+    "Profile boost to recruiter feeds",
+    "Early access to new jobs",
+    "24/7 Priority support",
+  ],
+};
+
+/* ═══════════════════════════════════════════════════
+   REUSABLE COMPONENTS
+   ═══════════════════════════════════════════════════ */
+
+/* ─── Current Plan Card ─── */
+function CurrentPlanCard({ subscription, onUpgrade }) {
+  const planName = subscription?.planName || subscription?.plan || "Free";
+  const planTier = planName.charAt(0).toUpperCase() + planName.slice(1);
+
+  const priceMap = { Free: "$0", Pro: "$19.99", Premium: "$39.99", Professional: "$29" };
+  const price = subscription?.amount ? `$${subscription.amount}` : priceMap[planTier] || "$0";
+
+  const features = PLAN_FEATURES[planTier] || PLAN_FEATURES.Pro;
+
+  return (
+    <div className="bg-[#1B1B1F] border border-white/[0.05] rounded-[14px] p-6 shadow-[0_2px_8px_rgba(0,0,0,0.18)] hover:border-white/[0.08] transition-all duration-200">
+      {/* Label Pill */}
+      <div className="mb-4">
+        <span className="inline-flex items-center text-[11px] uppercase tracking-wide font-medium px-2.5 py-1 bg-[#3A3A40] rounded-md text-[#A1A1AA]">
+          Current Plan
+        </span>
+      </div>
+
+      {/* Plan Info + Price */}
+      <div className="flex justify-between items-start">
+        <div>
+          <h3 className="text-[20px] font-semibold text-white leading-tight">
+            {planTier === "Professional" ? "Professional Tier" : `${planTier} Plan`}
+          </h3>
+          <p className="text-[14px] text-[#71717A] mt-1">
+            {planTier === "Free"
+              ? "Essential features for getting started"
+              : `Your ${planTier} subscription is active`}
+          </p>
+        </div>
+        <div className="text-right shrink-0 ml-4">
+          <div className="flex items-baseline gap-1">
+            <span className="text-[28px] font-bold text-white leading-none">{price}</span>
+            {planTier !== "Free" && <span className="text-[14px] text-[#71717A]">/mo</span>}
+          </div>
+          <p className="text-[12px] text-[#71717A] mt-1">
+            {planTier === "Free" ? "Free forever" : "Renews monthly"}
+          </p>
+        </div>
+      </div>
+
+      {/* Features Grid */}
+      <div className="grid grid-cols-2 gap-y-3 gap-x-6 mt-6">
+        {features.map((feature) => (
+          <div key={feature} className="flex items-center gap-2">
+            <Check size={16} aria-hidden="true" className="text-[#22C55E] shrink-0" />
+            <span className="text-[13px] text-[#A1A1AA]">{feature}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex gap-4 mt-6">
+        {planTier !== "Premium" && (
+          <form action="/api/checkout_sessions" method="POST">
+            <input type="hidden" name="plan_id" value={planTier === "Free" ? "seeker_pro" : "seeker_premium"} />
+            <button
+              type="submit"
+              aria-label="Upgrade Plan via Stripe Checkout"
+              className="h-10 px-4 bg-white text-black rounded-[10px] text-[14px] font-medium hover:bg-zinc-200 transition-all duration-150 ease-in-out shadow-[0_1px_3px_rgba(0,0,0,0.15)] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11]"
+            >
+              Upgrade Plan
+            </button>
+          </form>
+        )}
+        <button
+          aria-label="Manage subscription settings"
+          className="h-10 px-4 bg-[#1B1B1F] border border-white/[0.06] text-[#A1A1AA] rounded-[10px] text-[14px] font-medium hover:bg-[#222228] hover:text-white transition-all duration-150 ease-in-out cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11]"
+        >
+          Manage Plan
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Payment Method Card ─── */
+function PaymentMethodCard() {
+  return (
+    <div className="bg-[#1B1B1F] border border-white/[0.05] rounded-[14px] p-6 shadow-[0_2px_8px_rgba(0,0,0,0.18)] hover:border-white/[0.08] transition-all duration-200">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <h3 className="text-[18px] font-medium text-white">Payment Method</h3>
+        <span className="inline-flex items-center text-[10px] uppercase tracking-wide font-medium px-2 py-1 bg-[#3A3A40] rounded-md text-[#71717A]">
+          Secure by Stripe
+        </span>
+      </div>
+
+      {/* Credit Card Mock */}
+      <div className="mt-4 bg-gradient-to-br from-[#3A3A40] to-[#1B1B1F] rounded-[12px] p-4 border border-white/[0.06] shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
+        {/* Brand */}
+        <div className="flex justify-end mb-8">
+          <CreditCard size={28} aria-hidden="true" className="text-[#71717A]" />
+        </div>
+
+        {/* Masked Number */}
+        <p className="text-[18px] text-white font-medium tracking-[0.2em] text-center mb-8">
+          &bull;&bull;&bull;&bull; &nbsp; &bull;&bull;&bull;&bull; &nbsp; &bull;&bull;&bull;&bull; &nbsp; 4242
+        </p>
+
+        {/* Bottom Row */}
+        <div className="flex justify-between items-end">
+          <div>
+            <p className="text-[11px] text-[#71717A] uppercase tracking-wide">Card Holder</p>
+            <p className="text-[14px] text-[#A1A1AA] mt-0.5">Alex Rivera</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[11px] text-[#71717A] uppercase tracking-wide">Expires</p>
+            <p className="text-[14px] text-[#A1A1AA] mt-0.5">12/28</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Add New */}
+      <button
+        aria-label="Add a new payment method"
+        className="flex items-center justify-center gap-2 w-full text-[14px] text-[#71717A] mt-4 hover:text-white transition-colors duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11] rounded-lg"
+      >
+        <Plus size={15} aria-hidden="true" />
+        Add New Payment Method
+      </button>
+    </div>
+  );
+}
+
+/* ─── Status Badge (for table) ─── */
+function PaidBadge() {
+  return (
+    <span className="inline-flex items-center px-2.5 py-0.5 text-[12px] font-medium rounded-full bg-[#22C55E]/15 text-[#22C55E] border border-[#22C55E]/30">
+      Paid
+    </span>
+  );
+}
+
+/* ─── Billing Table ─── */
+function BillingTable({ payments }) {
+  return (
+    <div className="bg-[#1B1B1F] border border-white/[0.05] rounded-[14px] overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.18)]">
+      <table className="w-full" role="table" aria-label="Billing history">
+        {/* Header */}
+        <thead>
+          <tr className="h-12 border-b border-white/[0.05]">
+            <th scope="col" className="text-[12px] font-medium text-[#71717A] tracking-wide text-left px-6">Date</th>
+            <th scope="col" className="text-[12px] font-medium text-[#71717A] tracking-wide text-left px-6 hidden sm:table-cell">Plan</th>
+            <th scope="col" className="text-[12px] font-medium text-[#71717A] tracking-wide text-left px-6 hidden md:table-cell">Amount</th>
+            <th scope="col" className="text-[12px] font-medium text-[#71717A] tracking-wide text-left px-6 hidden lg:table-cell">Transaction ID</th>
+            <th scope="col" className="text-[12px] font-medium text-[#71717A] tracking-wide text-right px-6">Status</th>
+          </tr>
+        </thead>
+
+        {/* Body */}
+        <tbody>
+          {payments.length > 0 ? (
+            payments.map((payment, idx) => (
+              <tr
+                key={payment._id?.$oid || payment._id || idx}
+                className="h-14 border-t border-white/[0.05] hover:bg-[#222228] transition-colors duration-150"
+              >
+                <td className="px-6 text-[14px] text-[#A1A1AA]">
+                  {formatDate(payment.createdAt?.$date || payment.createdAt || payment.date)}
+                </td>
+                <td className="px-6 text-[14px] text-[#A1A1AA] capitalize hidden sm:table-cell">
+                  {payment.planName || payment.plan || "N/A"}
+                </td>
+                <td className="px-6 text-[14px] text-[#A1A1AA] hidden md:table-cell">
+                  ${payment.amount ?? "0.00"}
+                </td>
+                <td className="px-6 text-[12px] text-[#71717A] font-mono hidden lg:table-cell">
+                  {payment.transactionId || payment.stripeSubscriptionId || "N/A"}
+                </td>
+                <td className="px-6 text-right">
+                  <PaidBadge />
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={5}>
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <CreditCard size={40} aria-hidden="true" className="text-[#3A3A40] mb-4" />
+                  <p className="text-[#A1A1AA] text-[16px] font-medium mb-1">No payment history yet</p>
+                  <p className="text-[#71717A] text-[14px]">Your billing transactions will appear here.</p>
+                </div>
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/* ─── Support CTA ─── */
+function SupportCTA() {
+  return (
+    <div className="bg-[#1B1B1F] border border-white/[0.05] rounded-[14px] p-6 shadow-[0_2px_8px_rgba(0,0,0,0.18)] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div>
+        <h4 className="text-[15px] font-medium text-white">Need help with billing?</h4>
+        <p className="text-[13px] text-[#71717A] mt-1">
+          Our support team is available to assist you with any payment or subscription questions.
+        </p>
+      </div>
+      <div className="flex items-center gap-4 shrink-0">
+        <button
+          aria-label="Contact Support"
+          className="h-10 px-4 bg-white text-black rounded-[10px] text-[14px] font-medium hover:bg-zinc-200 transition-all duration-150 ease-in-out shadow-[0_1px_3px_rgba(0,0,0,0.15)] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11]"
+        >
+          Contact Support
+        </button>
+        <button
+          aria-label="Read Refund Policy"
+          className="text-[13px] text-[#71717A] hover:text-white transition-colors duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11] rounded-lg"
+        >
+          Read Refund Policy
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Billing Footer ─── */
+function BillingFooter() {
+  return (
+    <footer className="mt-10 px-0 pb-6 flex flex-col sm:flex-row justify-between gap-2">
+      <span className="text-[12px] text-[#71717A]">
+        &copy; 2025 HireLoop. All rights reserved.
+      </span>
+      <div className="flex items-center gap-4">
+        <button aria-label="Terms of Service" className="text-[12px] text-[#71717A] hover:text-[#A1A1AA] transition-colors duration-150 cursor-pointer">
+          Terms of Service
+        </button>
+        <button aria-label="Privacy Policy" className="text-[12px] text-[#71717A] hover:text-[#A1A1AA] transition-colors duration-150 cursor-pointer">
+          Privacy Policy
+        </button>
+      </div>
+    </footer>
+  );
+}
+
+/* ═══════════════════════════════════════════════════
+   BILLING PAGE
+   ═══════════════════════════════════════════════════ */
+export default function SeekerBillingPage() {
+  const { data: session, isPending } = useSession();
   const [subscription, setSubscription] = useState(null);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +321,6 @@ const SeekerBillingPage = () => {
         const data = await getPaymentHistory();
         const list = Array.isArray(data) ? data : data?.subscriptions || data?.payments || [];
         setPayments(list);
-        // Assume the latest payment has the current plan info
         if (list.length > 0) {
           setSubscription(list[0]);
         }
@@ -42,131 +333,56 @@ const SeekerBillingPage = () => {
     fetchData();
   }, []);
 
-  if (loading) {
+  if (isPending || loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+      <div className="flex items-center justify-center min-h-[60vh]" role="status" aria-label="Loading billing data">
+        <div className="w-7 h-7 border-2 border-[#3B82F6] border-t-transparent rounded-full animate-spin" />
+        <span className="sr-only">Loading...</span>
       </div>
     );
   }
 
-  const currentPlan = subscription?.planName || subscription?.plan || "Free";
-  const appsUsed = subscription?.applicationsUsed ?? 0;
-  const maxApps = subscription?.maxApplications ?? 3;
-  const usagePercent = Math.min((appsUsed / maxApps) * 100, 100);
-
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-2xl font-bold tracking-tight text-white">
-          Billing & Subscription
-        </h2>
-        <p className="text-sm text-zinc-500">
-          Manage your subscription plan and view payment history.
+    <div className="space-y-6">
+      {/* ── Page Header ── */}
+      <div>
+        <h1 className="text-[42px] font-bold text-white leading-tight tracking-tight">
+          Subscription &amp; Billing
+        </h1>
+        <p className="text-[15px] text-[#71717A] mt-1 leading-relaxed">
+          Manage your subscription plan, payment methods, and view billing history.
         </p>
       </div>
 
-      {/* Current Plan Card */}
-      <Card className="bg-[#18181b] border border-neutral-800 rounded-2xl p-0">
-        <Card.Content className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-800 text-zinc-300">
-                <CreditCard width={20} height={20} />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-white">Current Plan</h3>
-                <p className="text-sm text-zinc-500">
-                  {subscription?.status === "active" ? "Active" : "Inactive"}
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/plans"
-              className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-xl transition-colors"
-            >
-              Upgrade Plan
-              <ArrowUpRight className="w-4 h-4" />
-            </Link>
-          </div>
+      {/* ── Top Cards: Plan + Payment ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <CurrentPlanCard subscription={subscription} />
+        <PaymentMethodCard />
+      </div>
 
-          <div className="border-t border-zinc-800 pt-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-zinc-400">Applications This Month</span>
-              <span className="text-sm font-medium text-zinc-200">
-                {appsUsed} / {maxApps}
-              </span>
-            </div>
-            <div className="w-full h-3 bg-zinc-800 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${
-                  usagePercent >= 90
-                    ? "bg-rose-500"
-                    : usagePercent >= 70
-                    ? "bg-amber-500"
-                    : "bg-purple-500"
-                }`}
-                style={{ width: `${usagePercent}%` }}
-              />
-            </div>
-            <p className="text-xs text-zinc-600 mt-2">
-              {maxApps - appsUsed > 0
-                ? `${maxApps - appsUsed} application${maxApps - appsUsed !== 1 ? "s" : ""} remaining this month`
-                : "You have reached your monthly limit. Upgrade for more."}
-            </p>
-          </div>
-        </Card.Content>
-      </Card>
+      {/* ── Billing History Section ── */}
+      <section aria-label="Billing history">
+        <div className="flex justify-between items-center">
+          <h3 className="text-[18px] font-medium text-white">Billing History</h3>
+          <button
+            aria-label="Export billing history as PDF"
+            className="flex items-center gap-2 text-[14px] text-[#71717A] hover:text-white transition-colors duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11] rounded-lg"
+          >
+            <FileDown size={15} aria-hidden="true" />
+            Export PDF
+          </button>
+        </div>
 
-      {/* Payment History */}
-      <Card className="bg-[#18181b] border border-neutral-800 rounded-2xl p-0">
-        <Card.Content className="p-6 space-y-4">
-          <h3 className="text-lg font-semibold text-white">Payment History</h3>
+        <div className="mt-4">
+          <BillingTable payments={payments} />
+        </div>
+      </section>
 
-          {payments.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-zinc-800/60">
-                    <th className="text-left text-zinc-400 font-medium py-3 pr-4">Date</th>
-                    <th className="text-left text-zinc-400 font-medium py-3 pr-4">Plan</th>
-                    <th className="text-left text-zinc-400 font-medium py-3 pr-4">Amount</th>
-                    <th className="text-left text-zinc-400 font-medium py-3">Transaction ID</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payments.map((payment, idx) => (
-                    <tr
-                      key={payment._id?.$oid || payment._id || idx}
-                      className="border-b border-zinc-800/40 last:border-none"
-                    >
-                      <td className="py-3 pr-4 text-zinc-300">
-                        {formatRelativeTime(payment.createdAt?.$date || payment.createdAt || payment.date)}
-                      </td>
-                      <td className="py-3 pr-4 text-zinc-300 capitalize">
-                        {payment.planName || payment.plan || "N/A"}
-                      </td>
-                      <td className="py-3 pr-4 text-zinc-300">
-                        ${payment.amount ?? "0.00"}
-                      </td>
-                      <td className="py-3 text-zinc-500 font-mono text-xs">
-                        {payment.transactionId || payment.stripeSubscriptionId || "N/A"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="text-center py-10">
-              <CreditCard className="w-10 h-10 text-zinc-700 mx-auto mb-3" />
-              <p className="text-zinc-500 text-sm">No payment history yet.</p>
-            </div>
-          )}
-        </Card.Content>
-      </Card>
+      {/* ── Support CTA ── */}
+      <SupportCTA />
+
+      {/* ── Footer ── */}
+      <BillingFooter />
     </div>
   );
-};
-
-export default SeekerBillingPage;
+}
