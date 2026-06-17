@@ -1,8 +1,7 @@
 import { Geist, Geist_Mono, Space_Mono } from "next/font/google";
 import { Manrope } from "next/font/google";
 import "./globals.css";
-import Navbar from "@/components/Navbar";
-import Footer2 from "@/components/Footer2";
+import LayoutShell from "@/components/LayoutShell";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,9 +38,7 @@ export default function RootLayout({ children }) {
       className={`${geistSans.variable} ${geistMono.variable} ${spaceMono.variable} ${manrope.variable} dark h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Navbar />
-        <main className="pt-20">{children}</main>
-        <Footer2 />
+        <LayoutShell>{children}</LayoutShell>
       </body>
     </html>
   );

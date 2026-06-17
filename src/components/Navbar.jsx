@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "motion/react";
 import Image from "next/image";
 
 const NAV_LINKS = [
+  { label: "Home", href: "/" },
   { label: "Browse Jobs", href: "/jobs" },
   { label: "Company", href: "/companies" },
   { label: "Pricing", href: "/plans" },
@@ -41,17 +42,9 @@ export default function Navbar() {
     admin: "/dashboard/admin",
   };
 
-  const navLinks = [
-    ...NAV_LINKS,
-    ...(user?.email
-      ? [
-          {
-            label: "Dashboard",
-            href: dashboardLinks[user?.role || "seeker"],
-          },
-        ]
-      : []),
-  ];
+  const dashboardHref = user?.email
+    ? dashboardLinks[user?.role || "seeker"]
+    : null;
 
   return (
     <motion.header
@@ -68,7 +61,7 @@ export default function Navbar() {
         }`}
       >
         <div className="flex items-center justify-between h-16 px-5 sm:px-6">
-          {/* Logo */}
+          {/* Logo — Left */}
           <Image
             src="/images/logo.png"
             alt="logo-icon"
@@ -76,28 +69,32 @@ export default function Navbar() {
             height={50}
           />
 
-          {/* Desktop Nav Links */}
-          <div className="hidden md:flex items-center gap-7">
-            {navLinks.map((link, i) => (
-              <motion.div
-                key={link.label}
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 + i * 0.06, duration: 0.35 }}
-              >
-                <Link
-                  href={link.href}
-                  className="relative text-[#CCCCCC] text-[14px] font-medium hover:text-white transition-colors duration-200 py-1"
-                >
-                  {link.label}
-                  <span className="absolute -bottom-0.5 left-0 h-[2px] bg-[#6B63FF] w-0 hover:w-full transition-all duration-250" />
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Desktop Auth Buttons */}
+          {/* Desktop Right Section: Nav Links + Divider + Auth Buttons */}
           <div className="hidden md:flex items-center gap-4">
+            {/* Nav Links */}
+            <div className="flex items-center gap-1">
+              {NAV_LINKS.map((link, i) => (
+                <motion.div
+                  key={link.label}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 + i * 0.06, duration: 0.35 }}
+                >
+                  <Link
+                    href={link.href}
+                    className="relative text-[#CCCCCC] text-[14px] font-medium hover:text-white transition-colors duration-200 py-1 px-3"
+                  >
+                    {link.label}
+                    <span className="absolute -bottom-0.5 left-3 right-3 h-[2px] bg-[#6B63FF] w-0 hover:w-full transition-all duration-250" />
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Divider */}
+            <div className="w-px h-5 bg-white/10" />
+
+            {/* Auth Buttons */}
             {user ? (
               <motion.div
                 className="flex items-center gap-3"
@@ -220,7 +217,7 @@ export default function Navbar() {
               className="md:hidden overflow-hidden border-t border-white/[0.06]"
             >
               <div className="px-5 pt-3 pb-5 space-y-1">
-                {navLinks.map((link) => (
+                {NAV_LINKS.map((link) => (
                   <Link
                     key={link.label}
                     href={link.href}

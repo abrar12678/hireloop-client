@@ -37,20 +37,19 @@ const GoogleIcon = () => (
   </svg>
 );
 
+const getDashboardPath = (role) => {
+  const map = {
+    seeker: "/dashboard/seeker",
+    recruiter: "/dashboard/recruiter",
+    admin: "/dashboard/admin",
+  };
+  return map[role] || "/dashboard/seeker";
+};
+
 const SignInPage = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [redirectTo, setRedirectTo] = useState("/");
-
-  useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      setRedirectTo(params.get("redirect") || "/");
-    } catch (e) {
-      setRedirectTo("/");
-    }
-  }, []);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -72,8 +71,13 @@ const SignInPage = () => {
           theme: "dark",
           style: { background: "#1a1a2e", color: "#fff" },
         });
+
+        /* Fetch the session to get the user role, then redirect */
+        const { data: sessionData } = await authClient.getSession();
+        const role = sessionData?.session?.user?.role || sessionData?.user?.role || "seeker";
+
         setTimeout(() => {
-          router.push(redirectTo);
+          router.push(getDashboardPath(role));
           router.refresh();
         }, 1200);
       }
@@ -282,9 +286,9 @@ const SignInPage = () => {
 
           {/* Sign Up Link */}
           <p className="text-center text-[12px] sm:text-[13px] text-[#6B7280] pb-5 sm:pb-6">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link
-              href={`/auth/signUp?redirect=${redirectTo}`}
+              href="/auth/signUp"
               className="font-medium text-[#5C53FE] transition-colors hover:text-[#8B5CF6] hover:underline underline-offset-2"
             >
               Create account
