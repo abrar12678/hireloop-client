@@ -4,13 +4,15 @@ import React from "react";
 import ApplicationsTable from "./ApplicationsTable";
 
 const ApplicationsPage = async () => {
-  const user = await getUserSession();
-  const jobs = await getApplicationsByApplicant(user.id);
-  return (
-    <div>
-      <ApplicationsTable jobs={jobs}></ApplicationsTable>
-    </div>
-  );
+  let jobs = [];
+  try {
+    const user = await getUserSession();
+    jobs = await getApplicationsByApplicant(user.id);
+  } catch (err) {
+    console.error("Failed to fetch applications:", err);
+  }
+
+  return <ApplicationsTable jobs={jobs} />;
 };
 
 export default ApplicationsPage;
