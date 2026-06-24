@@ -47,7 +47,7 @@ const Page = async ({ params }) => {
   };
 
   return (
-    <main className="w-full min-h-screen bg-zinc-950 text-zinc-100 p-6 md:p-12 lg:p-16">
+    <main className="w-full min-h-screen bg-zinc-950 text-zinc-100 pt-24 pb-6 px-6 md:pt-28 md:pb-12 lg:pt-32 lg:pb-16">
       <div className="max-w-6xl mx-auto space-y-10">
         {/* Company Header */}
         <div className="bg-zinc-900 border border-zinc-800/80 rounded-[32px] p-8 space-y-6">

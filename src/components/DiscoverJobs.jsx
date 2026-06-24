@@ -47,15 +47,20 @@ export default function DiscoverJobs() {
 
   useEffect(() => {
     async function fetchRecentJobs() {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
       try {
-        const res = await fetch("/api/backend/jobs?perPage=3");
-        if (!res.ok) throw new Error("Failed to fetch");
+        const res = await fetch("/api/backend/jobs?perPage=3", {
+          signal: controller.signal,
+        });
+        if (!res.ok) return;
         const data = await res.json();
         setJobs(data.jobs || []);
       } catch (err) {
-        console.error("DiscoverJobs fetch error:", err);
+        if (err.name !== "AbortError") console.error("[DiscoverJobs]", err.message);
         setJobs([]);
       } finally {
+        clearTimeout(timeoutId);
         setLoading(false);
       }
     }

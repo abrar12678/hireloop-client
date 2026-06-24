@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import JobCard from "@/components/jobs/JobCard";
 import JobFilters from "@/components/jobs/JobFilters";
@@ -16,22 +16,20 @@ const SORT_OPTIONS = [
   { id: "recent", label: "Most Recent" },
   { id: "salary-desc", label: "Highest Salary" },
   { id: "salary-asc", label: "Lowest Salary" },
-  { id: "alpha", label: "A–Z" },
+  { id: "alpha", label: "A\u2013Z" },
 ];
 
-export default function JobListingContainer({ jobs, filters, total }) {
-  const [searchQuery, setSearchQuery] = useState(filters.search || "");
-  const [searchInput, setSearchInput] = useState(filters.search || "");
-  const [locationFilter, setLocationFilter] = useState(filters.location || "");
-  const [locationInput, setLocationInput] = useState(filters.location || "");
-  const [selectedType, setSelectedType] = useState(filters.jobType || "all");
-  const [selectedCategory, setSelectedCategory] = useState(
-    filters.jobCategory || "all",
-  );
-  const [isRemoteOnly, setIsRemoteOnly] = useState(filters.isRemote || false);
-  const [page, setPage] = useState(
-    filters.page ? parseInt(filters.page, 10) : 1,
-  );
+const ITEMS_PER_PAGE = 6;
+
+export default function JobListingContainer({ jobs, total, basePath = "/jobs", savedJobIds, onSavedChange }) {
+  const [searchInput, setSearchInput] = useState("");
+  const [locationInput, setLocationInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [debouncedLocation, setDebouncedLocation] = useState("");
+  const [selectedType, setSelectedType] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [isRemoteOnly, setIsRemoteOnly] = useState(false);
+  const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState("recent");
   const [sortOpen, setSortOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -39,9 +37,127 @@ export default function JobListingContainer({ jobs, filters, total }) {
   const sortRef = useRef(null);
   const router = useRouter();
 
-  const totalItems = total || 0;
-  const itemsPerPage = 4;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  // ── Debounce timers for real-time search ──
+  const searchTimer = useRef(null);
+  const locationTimer = useRef(null);
+
+  useEffect(() => {
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+      setPage(1);
+    }, 150);
+    return () => clearTimeout(searchTimer.current);
+  }, [searchInput]);
+
+  useEffect(() => {
+    clearTimeout(locationTimer.current);
+    locationTimer.current = setTimeout(() => {
+      setDebouncedLocation(locationInput);
+      setPage(1);
+    }, 150);
+    return () => clearTimeout(locationTimer.current);
+  }, [locationInput]);
+
+  // ── Client-side filtering (real-time) ──
+  const filteredJobs = useMemo(() => {
+    let result = [...jobs];
+
+    // Search filter — match any word in job title, company, description, category
+    if (debouncedSearch.trim()) {
+      const words = debouncedSearch
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(Boolean);
+      result = result.filter((job) => {
+        const haystack = [
+          job.jobTitle,
+          job.companyName,
+          job.description,
+          job.jobCategory,
+          job.responsibilities,
+          job.requirements,
+        ]
+          .join(" ")
+          .toLowerCase();
+        return words.every((w) => haystack.includes(w));
+      });
+    }
+
+    // Location filter — match any word in location
+    if (debouncedLocation.trim()) {
+      const locWords = debouncedLocation
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(Boolean);
+      result = result.filter((job) => {
+        const loc = (job.location || "").toLowerCase();
+        return locWords.every((w) => loc.includes(w));
+      });
+    }
+
+    // Remote filter
+    if (isRemoteOnly) {
+      result = result.filter((job) => job.isRemote);
+    }
+
+    // Job type filter
+    if (selectedType !== "all") {
+      result = result.filter(
+        (job) => job.jobType?.toLowerCase() === selectedType.toLowerCase(),
+      );
+    }
+
+    // Category filter
+    if (selectedCategory !== "all") {
+      result = result.filter(
+        (job) =>
+          job.jobCategory?.toLowerCase() === selectedCategory.toLowerCase(),
+      );
+    }
+
+    // Sorting
+    if (sortBy === "salary-desc") {
+      result.sort(
+        (a, b) =>
+          (parseInt(b.maxSalary) || 0) - (parseInt(a.maxSalary) || 0),
+      );
+    } else if (sortBy === "salary-asc") {
+      result.sort(
+        (a, b) =>
+          (parseInt(a.minSalary) || 0) - (parseInt(b.minSalary) || 0),
+      );
+    } else if (sortBy === "alpha") {
+      result.sort((a, b) =>
+        (a.jobTitle || "").localeCompare(b.jobTitle || ""),
+      );
+    }
+    // "recent" — keep original order from server
+
+    return result;
+  }, [
+    jobs,
+    debouncedSearch,
+    debouncedLocation,
+    isRemoteOnly,
+    selectedType,
+    selectedCategory,
+    sortBy,
+  ]);
+
+  // ── Pagination on filtered results ──
+  const totalItems = filteredJobs.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+  const safePage = Math.min(page, totalPages);
+  const paginatedJobs = filteredJobs.slice(
+    (safePage - 1) * ITEMS_PER_PAGE,
+    safePage * ITEMS_PER_PAGE,
+  );
+
+  // Reset page if filters change and page is out of range
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   // Close sort dropdown on outside click
   useEffect(() => {
@@ -57,15 +173,15 @@ export default function JobListingContainer({ jobs, filters, total }) {
   const getPageNumbers = () => {
     const pages = [];
     pages.push(1);
-    if (page > 3) {
+    if (safePage > 3) {
       pages.push("ellipsis-start");
     }
-    const start = Math.max(2, page - 1);
-    const end = Math.min(totalPages - 1, page + 1);
+    const start = Math.max(2, safePage - 1);
+    const end = Math.min(totalPages - 1, safePage + 1);
     for (let i = start; i <= end; i++) {
       pages.push(i);
     }
-    if (page < totalPages - 2) {
+    if (safePage < totalPages - 2) {
       pages.push("ellipsis-end");
     }
     if (totalPages > 1) {
@@ -74,57 +190,30 @@ export default function JobListingContainer({ jobs, filters, total }) {
     return pages;
   };
 
-  const handleSearch = useCallback(() => {
-    setSearchQuery(searchInput);
-    setLocationFilter(locationInput);
-    setPage(1);
-  }, [searchInput, locationInput]);
-
-  const handleKeyDown = useCallback(
-    (e) => {
-      if (e.key === "Enter") {
-        handleSearch();
-      }
-    },
-    [handleSearch],
-  );
-
+  // ── Sync URL with debounce (for shareable links) ──
+  const urlTimer = useRef(null);
   useEffect(() => {
-    const sp = new URLSearchParams();
-
-    if (searchQuery) {
-      sp.set("search", searchQuery);
-    }
-
-    if (locationFilter) {
-      sp.set("location", locationFilter);
-    }
-
-    if (selectedType !== "all") {
-      sp.set("jobType", selectedType);
-    }
-    if (selectedCategory !== "all") {
-      sp.set("jobCategory", selectedCategory);
-    }
-
-    if (isRemoteOnly) {
-      sp.set("isRemote", true);
-    }
-
-    if (page) {
-      sp.set("page", page);
-    }
-
-    const path = `?${sp.toString()}`;
-    router.push(path);
+    clearTimeout(urlTimer.current);
+    urlTimer.current = setTimeout(() => {
+      const sp = new URLSearchParams();
+      if (debouncedSearch) sp.set("search", debouncedSearch);
+      if (debouncedLocation) sp.set("location", debouncedLocation);
+      if (selectedType !== "all") sp.set("jobType", selectedType);
+      if (selectedCategory !== "all") sp.set("jobCategory", selectedCategory);
+      if (isRemoteOnly) sp.set("isRemote", "true");
+      if (safePage > 1) sp.set("page", String(safePage));
+      const qs = sp.toString();
+      router.replace(qs ? `${basePath}?${qs}` : basePath, { scroll: false });
+    }, 500);
+    return () => clearTimeout(urlTimer.current);
   }, [
     router,
-    searchQuery,
-    locationFilter,
+    debouncedSearch,
+    debouncedLocation,
     selectedType,
     selectedCategory,
     isRemoteOnly,
-    page,
+    safePage,
   ]);
 
   const activeSortLabel =
@@ -140,9 +229,8 @@ export default function JobListingContainer({ jobs, filters, total }) {
             type="text"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            onKeyDown={handleKeyDown}
             placeholder="Search by job title, keywords..."
-            className="w-full bg-[#1E1E1E] border border-zinc-800/60 focus:border-[#00D4AA]/50 rounded-xl text-white placeholder-zinc-500 text-sm py-3 pl-12 pr-4 outline-none transition-colors duration-200"
+            className="w-full bg-[#1E1E1E] border border-zinc-800/60 focus:border-[#6B63FF]/50 rounded-xl text-white placeholder-zinc-500 text-sm py-3 pl-12 pr-4 outline-none transition-colors duration-200"
           />
         </div>
         <div className="relative sm:w-[220px]">
@@ -168,14 +256,17 @@ export default function JobListingContainer({ jobs, filters, total }) {
             type="text"
             value={locationInput}
             onChange={(e) => setLocationInput(e.target.value)}
-            onKeyDown={handleKeyDown}
             placeholder="Location..."
-            className="w-full bg-[#1E1E1E] border border-zinc-800/60 focus:border-[#00D4AA]/50 rounded-xl text-white placeholder-zinc-500 text-sm py-3 pl-10 pr-4 outline-none transition-colors duration-200"
+            className="w-full bg-[#1E1E1E] border border-zinc-800/60 focus:border-[#6B63FF]/50 rounded-xl text-white placeholder-zinc-500 text-sm py-3 pl-10 pr-4 outline-none transition-colors duration-200"
           />
         </div>
         <button
-          onClick={handleSearch}
-          className="bg-[#00D4AA] hover:bg-[#00c49e] text-black text-sm font-semibold px-6 py-3 rounded-xl transition-colors duration-200 whitespace-nowrap"
+          onClick={() => {
+            setDebouncedSearch(searchInput);
+            setDebouncedLocation(locationInput);
+            setPage(1);
+          }}
+          className="bg-gradient-to-r from-[#6B63FF] to-[#5A54F5] hover:shadow-lg hover:shadow-[#6B63FF]/25 text-white text-sm font-medium px-6 py-3 rounded-lg transition-all duration-200 whitespace-nowrap"
         >
           Search Jobs
         </button>
@@ -297,13 +388,16 @@ export default function JobListingContainer({ jobs, filters, total }) {
           </div>
 
           {/* Job Cards List */}
-          {jobs.length > 0 ? (
+          {paginatedJobs.length > 0 ? (
             <>
               <div className="flex flex-col gap-3">
-                {jobs.map((jobItem, idx) => (
+                {paginatedJobs.map((jobItem, idx) => (
                   <JobCard
                     key={jobItem._id?.$oid || jobItem._id}
                     job={jobItem}
+                    basePath={basePath}
+                    savedJobIds={savedJobIds}
+                    onSavedChange={onSavedChange}
                   />
                 ))}
               </div>
@@ -313,7 +407,7 @@ export default function JobListingContainer({ jobs, filters, total }) {
                 <div className="flex items-center justify-center gap-1.5 mt-8 mb-4">
                   <button
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
+                    disabled={safePage === 1}
                     className="w-9 h-9 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                     aria-label="Previous page"
                   >
@@ -333,7 +427,7 @@ export default function JobListingContainer({ jobs, filters, total }) {
                         key={p}
                         onClick={() => setPage(p)}
                         className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
-                          p === page
+                          p === safePage
                             ? "bg-white text-black"
                             : "text-zinc-400 hover:text-white hover:bg-zinc-800/60"
                         }`}
@@ -345,7 +439,7 @@ export default function JobListingContainer({ jobs, filters, total }) {
 
                   <button
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
+                    disabled={safePage === totalPages}
                     className="w-9 h-9 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                     aria-label="Next page"
                   >

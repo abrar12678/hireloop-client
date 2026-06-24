@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card } from "@heroui/react";
 import { toast } from "react-toastify";
@@ -118,7 +117,6 @@ const PasswordField = ({
 };
 
 const SignUpPage = () => {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState("seeker");
 
@@ -160,13 +158,13 @@ const SignUpPage = () => {
           style: { background: "#1a1a2e", color: "#fff" },
         });
 
-        /* After sign up, fetch session to get role, then redirect */
+        /* After sign up, fetch session to get role, then redirect.
+           Use window.location.replace so the auth page is NEVER in browser history. */
         const { data: sessionData } = await authClient.getSession();
         const userRole = sessionData?.session?.user?.role || sessionData?.user?.role || role;
 
         setTimeout(() => {
-          router.push(getDashboardPath(userRole));
-          router.refresh();
+          window.location.replace(getDashboardPath(userRole));
         }, 1200);
       }
 

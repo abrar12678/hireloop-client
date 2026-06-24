@@ -2,7 +2,7 @@ import { stripe } from "@/lib/stripe";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 // Gravity UI Icons for a high-quality production finish
-import { CircleCheckFill, Envelope, ArrowLeft } from "@gravity-ui/icons";
+import { CircleCheckFill, Envelope, ArrowRight } from "@gravity-ui/icons";
 import { createSubscription } from "@/lib/action/subscriptions";
 
 export default async function Success({ searchParams }) {
@@ -20,7 +20,8 @@ export default async function Success({ searchParams }) {
   });
 
   if (status === "open") {
-    return redirect("/");
+    // Payment not completed — redirect to dashboard (not homepage)
+    redirect("/dashboard");
   }
 
   if (status === "complete") {
@@ -87,14 +88,6 @@ export default async function Success({ searchParams }) {
               className="block w-full text-center text-xs font-semibold px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-950/30 transition duration-200"
             >
               Go to Workspace Dashboard
-            </Link>
-
-            <Link
-              href="/"
-              className="inline-flex items-center justify-center gap-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 py-1 transition"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Return to Homepage
             </Link>
           </div>
         </section>

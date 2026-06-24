@@ -37,31 +37,20 @@ export const protectedFetch = async (path) => {
 export const serverFetch = async (path) => {
   try {
     const res = await fetch(`${baseUrl}${path}`);
-
-    handleStatusCode(res);
-
+    // NO handleStatusCode — public API calls, no redirect on 401
     if (!res.ok) {
-      console.error(
-        `[serverFetch] ${res.status} ${res.statusText} for ${path}`,
-      );
-      return [];
+      return null;
     }
-
     const contentType = res.headers.get("content-type");
     if (!contentType || !contentType.includes("application/json")) {
-      console.error(
-        `[serverFetch] Expected JSON but got ${contentType} for ${path}`,
-      );
-      return [];
+      return null;
     }
-
     return await res.json();
   } catch (error) {
     if (error?.message === "NEXT_REDIRECT" || error?.name === "Redirect") {
       throw error;
     }
-    console.error(`[serverFetch] Failed to fetch ${path}:`, error.message);
-    return [];
+    return null;
   }
 };
 

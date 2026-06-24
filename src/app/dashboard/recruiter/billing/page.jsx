@@ -5,7 +5,6 @@ import { Card, Button } from "@heroui/react";
 import { CreditCard, ArrowUpRight, Briefcase } from "@gravity-ui/icons";
 import { getPaymentHistory } from "@/lib/api-client/subscriptions";
 import { getLoggedInRecruiterCompany } from "@/lib/api-client/companies";
-import Link from "next/link";
 
 const formatRelativeTime = (dateString) => {
   const now = new Date();
@@ -86,13 +85,29 @@ const RecruiterBillingPage = () => {
               </div>
             </div>
             <div className="flex gap-2">
-              <Link
-                href="/plans"
-                className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-xl transition-colors"
-              >
-                Upgrade
-                <ArrowUpRight className="w-4 h-4" />
-              </Link>
+              {currentPlan === "Free" ? (
+                <form action="/api/checkout_sessions" method="POST">
+                  <input type="hidden" name="plan_id" value="recruiter_growth" />
+                  <button
+                    type="submit"
+                    className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-xl transition-colors cursor-pointer"
+                  >
+                    Upgrade to Growth
+                    <ArrowUpRight className="w-4 h-4" />
+                  </button>
+                </form>
+              ) : currentPlan === "recruiter_growth" ? (
+                <form action="/api/checkout_sessions" method="POST">
+                  <input type="hidden" name="plan_id" value="recruiter_enterprise" />
+                  <button
+                    type="submit"
+                    className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-xl transition-colors cursor-pointer"
+                  >
+                    Upgrade to Enterprise
+                    <ArrowUpRight className="w-4 h-4" />
+                  </button>
+                </form>
+              ) : null}
             </div>
           </div>
 

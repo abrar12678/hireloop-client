@@ -133,12 +133,12 @@ function EmptyState({ onRegister }) {
             <ArrowRight size={16} aria-hidden="true" />
           </button>
           <Link
-            href="/plans"
-            aria-label="View FAQ"
+            href="/dashboard/recruiter/billing"
+            aria-label="View plans"
             className="w-full sm:w-auto h-10 px-6 bg-[#1B1B1F] border border-white/[0.06] text-[#A1A1AA] rounded-[10px] text-[14px] font-medium hover:bg-[#222228] hover:text-white transition-all duration-150 ease-in-out inline-flex items-center justify-center gap-2"
           >
             <HelpCircle size={16} aria-hidden="true" />
-            View FAQ
+            View Plans
           </Link>
         </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion } from "motion/react";
 import { Magnifier, ShieldCheck, ArrowRight, ChevronLeft, ChevronRight } from "@gravity-ui/icons";
 import Link from "next/link";
@@ -102,9 +102,10 @@ const CompanyCard = ({ company, index }) => {
 export default function CompaniesPage() {
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const searchTimer = useRef(null);
 
   React.useEffect(() => {
     const fetchCompanies = async () => {
@@ -124,18 +125,27 @@ export default function CompaniesPage() {
     fetchCompanies();
   }, []);
 
-  // Filter companies by search query
+  // Debounce search — 150ms for instant feel
+  useEffect(() => {
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+      setCurrentPage(1);
+    }, 150);
+    return () => clearTimeout(searchTimer.current);
+  }, [searchInput]);
+
+  // Filter companies by search query (word-level matching)
   const filteredCompanies = useMemo(() => {
-    if (!searchQuery.trim()) return companies;
-    const q = searchQuery.toLowerCase();
-    return companies.filter(
-      (c) =>
-        c.name?.toLowerCase().includes(q) ||
-        c.industry?.toLowerCase().includes(q) ||
-        c.location?.toLowerCase().includes(q) ||
-        c.description?.toLowerCase().includes(q)
-    );
-  }, [companies, searchQuery]);
+    if (!debouncedSearch.trim()) return companies;
+    const words = debouncedSearch.toLowerCase().split(/\s+/).filter(Boolean);
+    return companies.filter((c) => {
+      const haystack = [c.name, c.industry, c.location, c.description]
+        .join(" ")
+        .toLowerCase();
+      return words.every((w) => haystack.includes(w));
+    });
+  }, [companies, debouncedSearch]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredCompanies.length / ITEMS_PER_PAGE));
@@ -145,11 +155,7 @@ export default function CompaniesPage() {
     safePage * ITEMS_PER_PAGE
   );
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setSearchQuery(searchInput);
-    setCurrentPage(1);
-  };
+
 
   const goToPage = (page) => {
     if (page >= 1 && page <= totalPages) {
@@ -183,7 +189,7 @@ export default function CompaniesPage() {
           <div className="absolute top-[-30%] left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-[#6366F1]/[0.06] rounded-full blur-[100px]" />
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-5 sm:px-8 lg:px-10 pt-16 sm:pt-20 lg:pt-24 pb-12 sm:pb-16">
+        <div className="relative max-w-7xl mx-auto px-5 sm:px-8 lg:px-10 pt-24 sm:pt-28 lg:pt-32 pb-12 sm:pb-16">
           <motion.h1
             variants={fadeUp}
             custom={0}
@@ -212,10 +218,7 @@ export default function CompaniesPage() {
             animate="visible"
             className="max-w-2xl mx-auto"
           >
-            <form
-              onSubmit={handleSearch}
-              className="flex items-stretch bg-zinc-900 border border-zinc-800/80 rounded-xl overflow-hidden"
-            >
+            <div className="flex items-stretch bg-zinc-900 border border-zinc-800/80 rounded-xl overflow-hidden">
               <div className="flex items-center flex-1 px-4 py-3.5">
                 <Magnifier className="w-[18px] h-[18px] text-zinc-500 mr-3 flex-shrink-0" />
                 <input
@@ -227,12 +230,12 @@ export default function CompaniesPage() {
                 />
               </div>
               <button
-                type="submit"
-                className="flex-shrink-0 border-l border-zinc-800 bg-transparent hover:bg-zinc-800/50 text-white font-medium text-sm px-6 py-3.5 transition-colors cursor-pointer"
+                type="button"
+                className="flex-shrink-0 border-l border-zinc-800 bg-gradient-to-r from-[#6B63FF] to-[#5A54F5] hover:shadow-lg hover:shadow-[#6B63FF]/25 text-white font-medium text-sm px-6 py-3.5 transition-all duration-200 cursor-pointer whitespace-nowrap"
               >
                 Find Companies
               </button>
-            </form>
+            </div>
           </motion.div>
         </div>
       </section>
@@ -278,8 +281,8 @@ export default function CompaniesPage() {
           !loading && (
             <div className="text-center py-20 border border-dashed border-zinc-800 rounded-2xl">
               <p className="text-zinc-500 text-lg">
-                {searchQuery
-                  ? `No companies found matching "${searchQuery}".`
+                {debouncedSearch
+                  ? `No companies found matching "${debouncedSearch}".`
                   : "No companies found."}
               </p>
             </div>

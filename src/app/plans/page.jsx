@@ -1,305 +1,343 @@
 "use client";
-import React, { useState } from "react";
-import Link from "next/link";
-// Gravity UI Icons for a polished visual identity
+
+import { useState } from "react";
+import { Crown, BarChart3, Zap, ArrowRight, Briefcase, User } from "lucide-react";
+import { motion } from "motion/react";
 import {
   Check,
   CircleQuestion,
   ChevronDown,
-  Person,
-  Briefcase,
-  Rocket,
-  // Zap,
-  Star,
 } from "@gravity-ui/icons";
 
+/* ─── Plan Data ─── */
+const SEEKER_PLANS = [
+  {
+    name: "Free",
+    id: "seeker_free",
+    icon: "crown",
+    monthlyPrice: "$0",
+    period: "/forever",
+    description: "Essential features for getting started",
+    features: [
+      "Browse & save up to 10 jobs",
+      "Apply to up to 3 jobs per month",
+      "Basic profile page",
+      "Standard email alerts",
+    ],
+    popular: false,
+  },
+  {
+    name: "Pro",
+    id: "seeker_pro",
+    icon: "barChart",
+    monthlyPrice: "$19.99",
+    period: "/month",
+    description: "Accelerate your job search",
+    features: [
+      "Apply to up to 30 jobs per month",
+      "Unlimited saved jobs",
+      "Advanced application tracking dashboard",
+      "Comprehensive salary insights",
+    ],
+    popular: true,
+  },
+  {
+    name: "Premium",
+    id: "seeker_premium",
+    icon: "zap",
+    monthlyPrice: "$39.99",
+    period: "/month",
+    description: "Uncapped potential for elite talent",
+    features: [
+      "Everything in Pro + Unlimited apps",
+      "Profile boost to recruiter feeds",
+      "Early access to new jobs",
+      "24/7 Priority support",
+    ],
+    popular: false,
+  },
+];
+
+const RECRUITER_PLANS = [
+  {
+    name: "Free",
+    id: "recruiter_free",
+    icon: "crown",
+    monthlyPrice: "$0",
+    period: "/forever",
+    description: "Ideal baseline for startup hiring",
+    features: [
+      "Up to 3 active job posts simultaneously",
+      "Basic applicant management pipeline",
+      "Standard organic listing search visibility",
+      "Great for a company's first year of hiring",
+    ],
+    popular: false,
+  },
+  {
+    name: "Growth",
+    id: "recruiter_growth",
+    icon: "barChart",
+    monthlyPrice: "$49.99",
+    period: "/month",
+    description: "Built for expanding companies",
+    features: [
+      "Up to 10 active job posts simultaneously",
+      "Full automated applicant tracking workflow",
+      "Basic listing performance metrics & analytics",
+      "Dedicated email support desk response",
+    ],
+    popular: true,
+  },
+  {
+    name: "Enterprise",
+    id: "recruiter_enterprise",
+    icon: "zap",
+    monthlyPrice: "$149.99",
+    period: "/month",
+    description: "Large-scale talent acquisition",
+    features: [
+      "Up to 50 active job posts simultaneously",
+      "Advanced interactive analytics dashboard",
+      "Premium featured job listing styling boosts",
+      "Multi-user team collaboration seats",
+      "Custom corporate branding options",
+      "Dedicated account manager + priority support",
+    ],
+    popular: false,
+  },
+];
+
+const ICON_MAP = { crown: Crown, barChart: BarChart3, zap: Zap };
+
+function getYearlyPrice(monthlyPriceStr) {
+  const num = parseFloat(monthlyPriceStr.replace("$", ""));
+  if (num === 0) return "$0";
+  const yearlyTotal = num * 12 * 0.75;
+  return `$${yearlyTotal.toFixed(2)}`;
+}
+
+const faqs = [
+  {
+    question: "Can I cancel my subscription at any time?",
+    answer:
+      "Yes, absolutely. All our premium tiers operate on flexible, non-binding month-to-month subscription structures. You can easily modify, downgrade, or cancel your renewal configurations through your profile billing dashboard settings at any time with no penalties.",
+  },
+  {
+    question: "How do refunds work if I change my mind?",
+    answer:
+      "We maintain a 14-day satisfaction policy. If you determine the premium features aren't a proper fit for your current search or hiring sequence within your initial two weeks of service, reach out to support for a complete refund.",
+  },
+  {
+    question: "What payment methods do you accept?",
+    answer:
+      "We support all major international credit/debit networks including Visa, Mastercard, American Express, and Discover. Enterprise-grade recruiters also have options to establish monthly or annual invoicing arrangements via bank wire transfers.",
+  },
+  {
+    question: "What happens if I decide to switch plans mid-month?",
+    answer:
+      "If you upgrade your plan tier mid-cycle, the transition occurs immediately, and your remaining days on the old tier are applied as a pro-rated credit toward your updated invoice. Downgrades take effect starting with your subsequent billing date.",
+  },
+];
+
+/* ─── Component ─── */
 const PricingPage = () => {
-  // State to toggle between 'seeker' and 'recruiter' pricing tiers
   const [billingTarget, setBillingTarget] = useState("seeker");
-  // State to track opened accordion items in the FAQ section
+  const [billingCycle, setBillingCycle] = useState("monthly");
   const [openFaq, setOpenFaq] = useState(null);
 
-  const toggleFaq = (index) => {
-    setOpenFaq(openFaq === index ? null : index);
-  };
+  const toggleFaq = (index) => setOpenFaq(openFaq === index ? null : index);
 
-  // Organized Data Structuring based directly on your provided image & text parameters
-  const seekerPlans = [
-    {
-      name: "Free",
-      id: "seeker_free",
-      price: "$0",
-      period: "/forever",
-      description:
-        "Essential features for getting started and organizing your initial search tracking.",
-      icon: <Person className="w-5 h-5 text-zinc-400" />,
-      features: [
-        "Browse & save up to 10 jobs",
-        "Apply to up to 3 jobs per month",
-        "Basic profile page",
-        "Standard email alerts",
-      ],
-      cta: "Get Started",
-      popular: false,
-    },
-    {
-      name: "Pro",
-      id: "seeker_pro",
-      price: "$19.99",
-      period: "/month",
-      description:
-        "Our most popular option for serious active candidates looking to rapidly accelerate landing a role.",
-      icon: <Star className="w-5 h-5 text-blue-400" />,
-      features: [
-        "Apply to up to 30 jobs per month",
-        "Unlimited saved jobs",
-        "Advanced application tracking dashboard",
-        "Comprehensive salary insights",
-      ],
-      cta: "Upgrade to Pro",
-      popular: true,
-    },
-    {
-      name: "Premium",
-      id: "seeker_premium",
-      price: "$39.99",
-      period: "/month",
-      description:
-        "Uncapped potential and priority visibility tools tailored for elite competitive talent placement.",
-      icon: <Star className="w-5 h-5 text-purple-400" />,
-      features: [
-        "Everything in Pro + Unlimited applications",
-        "Profile boost directly to recruiter feeds",
-        "Early access to freshly published jobs",
-        "24/7 Priority customer support queue",
-      ],
-      cta: "Go Premium",
-      popular: false,
-    },
-  ];
-
-  const recruiterPlans = [
-    {
-      name: "Free",
-      id: "recruiter_free",
-      price: "$0",
-      period: "/forever",
-      description:
-        "Ideal baseline solution matching startups launching their initial hiring infrastructure pipeline.",
-      icon: <Briefcase className="w-5 h-5 text-zinc-400" />,
-      features: [
-        "Up to 3 active job posts simultaneously",
-        "Basic applicant management pipeline",
-        "Standard organic listing search visibility",
-        "Great for a company’s first year of hiring",
-      ],
-      cta: "Start Free Posting",
-      popular: false,
-    },
-    {
-      name: "Growth",
-      id: "recruiter_growth",
-      price: "$49.99",
-      period: "/month",
-      description:
-        "Expanded allocation built for expanding companies with active multi-departmental team tracks.",
-      icon: <Rocket className="w-5 h-5 text-blue-400" />,
-      features: [
-        "Up to 10 active job posts simultaneously",
-        "Full automated applicant tracking workflow",
-        "Basic listing performance metrics & analytics",
-        "Dedicated email support desk response",
-      ],
-      cta: "Scale Your Hiring",
-      popular: true,
-    },
-    {
-      name: "Enterprise",
-      id: "recruiter_enterprise",
-      price: "$149.99",
-      period: "/month",
-      description:
-        "High performance structural operations for organizations with continuous large-scale talent acquisition.",
-      icon: <Star className="w-5 h-5 text-purple-400" />,
-      features: [
-        "Up to 50 active job posts simultaneously",
-        "Advanced interactive analytics visual dashboard",
-        "Premium featured job listing styling boosts",
-        "Multi-user team collaboration seats",
-        "Custom corporate branding options",
-        "Dedicated account manager + priority support",
-      ],
-      cta: "Contact Corporate Tier",
-      popular: false,
-    },
-  ];
-
-  const faqs = [
-    {
-      question: "Can I cancel my subscription at any time?",
-      answer:
-        "Yes, absolutely. All our premium tiers operate on flexible, non-binding month-to-month subscription structures. You can easily modify, downgrade, or cancel your renewal configurations through your profile billing dashboard settings at any time with no penalties.",
-    },
-    {
-      question: "How do refunds work if I change my mind?",
-      answer:
-        "We maintain a 14-day satisfaction policy. If you determine the premium features aren’t a proper fit for your current search or hiring sequence within your initial two weeks of service, reach out to support for a complete refund.",
-    },
-    {
-      question: "What payment methods do you accept?",
-      answer:
-        "We support all major international credit/debit networks including Visa, Mastercard, American Express, and Discover. Enterprise-grade recruiters also have options to establish monthly or annual invoicing arrangements via bank wire transfers.",
-    },
-    {
-      question: "What happens if I decide to switch plans mid-month?",
-      answer:
-        "If you upgrade your plan tier mid-cycle, the transition occurs immediately, and your remaining days on the old tier are applied as a pro-rated credit toward your updated invoice. Downgrades take effect starting with your subsequent billing date.",
-    },
-  ];
-
-  const activePlans = billingTarget === "seeker" ? seekerPlans : recruiterPlans;
+  const activePlans = billingTarget === "seeker" ? SEEKER_PLANS : RECRUITER_PLANS;
 
   return (
-    <div className="w-full min-h-screen bg-zinc-950 text-zinc-50 py-16 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Header Title Typography */}
-        <div className="text-center max-w-3xl mx-auto mb-12">
-          <span className="text-xs font-semibold uppercase tracking-widest text-blue-500">
+    <div className="w-full min-h-screen bg-black text-white">
+      {/* ── Header ── */}
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-6 sm:pt-28 sm:pb-10">
+        <div className="text-center flex flex-col items-center">
+          {/* Kicker */}
+          <p className="inline-flex items-center gap-2.5 font-[family-name:var(--font-space-mono)] text-xs font-semibold tracking-[0.25em] uppercase text-white/80 mb-4">
+            <span className="inline-block w-[7px] h-[7px] bg-[#2563eb] rounded-sm" />
             Transparent Pricing
-          </span>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-zinc-100 mt-2 tracking-tight">
-            Flexible plans tailored to your goals
+            <span className="inline-block w-[7px] h-[7px] bg-[#2563eb] rounded-sm" />
+          </p>
+
+          {/* Heading */}
+          <h1 className="font-[family-name:var(--font-manrope)] text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight leading-[1.1] text-white mb-4">
+            Pay for the leverage,
+            <br />
+            not the listings
           </h1>
-          <p className="text-zinc-400 mt-3 text-sm sm:text-base leading-relaxed">
+          <p className="text-neutral-500 text-sm sm:text-base max-w-2xl leading-relaxed">
             Whether you are an ambitious job seeker hunting for your next
             milestone or an expanding operation tracking down pristine talent,
             we have got you covered.
           </p>
         </div>
+      </div>
 
-        {/* Switch Segment Control Toggle Grid Wrapper */}
-        <div className="flex justify-center mb-16">
-          <div className="p-1.5 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center gap-1 shadow-inner">
-            <button
-              onClick={() => setBillingTarget("seeker")}
-              className={`flex items-center gap-2 px-5 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                billingTarget === "seeker"
-                  ? "bg-zinc-800 text-white shadow-md border border-zinc-700/50"
-                  : "text-zinc-400 hover:text-zinc-200"
-              }`}
-            >
-              <Person className="w-4 h-4" />
-              For Job Seekers
-            </button>
-            <button
-              onClick={() => setBillingTarget("recruiter")}
-              className={`flex items-center gap-2 px-5 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                billingTarget === "recruiter"
-                  ? "bg-zinc-800 text-white shadow-md border border-zinc-700/50"
-                  : "text-zinc-400 hover:text-zinc-200"
-              }`}
-            >
-              <Briefcase className="w-4 h-4" />
-              For Recruiters
-            </button>
-          </div>
+      {/* ── Toggles Row ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center gap-6 mb-14">
+        {/* Seeker / Recruiter Tab */}
+        <div className="relative inline-grid grid-cols-2 bg-[#161617] rounded-full p-1 w-[280px]">
+          <button
+            onClick={() => setBillingTarget("seeker")}
+            className="relative z-10 flex items-center justify-center gap-2 py-2 rounded-full text-sm font-medium transition-colors duration-200"
+          >
+            <User className="w-4 h-4" />
+            <span className={billingTarget === "seeker" ? "text-black" : "text-slate-400"}>
+              Job Seekers
+            </span>
+          </button>
+          <button
+            onClick={() => setBillingTarget("recruiter")}
+            className="relative z-10 flex items-center justify-center gap-2 py-2 rounded-full text-sm font-medium transition-colors duration-200"
+          >
+            <Briefcase className="w-4 h-4" />
+            <span className={billingTarget === "recruiter" ? "text-black" : "text-slate-400"}>
+              Recruiters
+            </span>
+          </button>
+          <motion.div
+            layoutId="target-toggle"
+            className="absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] bg-white rounded-full"
+            animate={{ x: billingTarget === "seeker" ? 0 : "100%" }}
+            transition={{ type: "spring", stiffness: 500, damping: 35 }}
+          />
         </div>
 
-        {/* 3-Tier Pricing Cards Grid Layout Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start mb-24">
-          {activePlans.map((plan, idx) => (
-            <div
-              key={idx}
-              className={`relative bg-zinc-900 border rounded-2xl p-6 shadow-xl flex flex-col justify-between min-h-[480px] transition-all duration-300 hover:-translate-y-1 ${
-                plan.popular
-                  ? "border-blue-500/80 ring-2 ring-blue-500/10"
-                  : "border-zinc-800 hover:border-zinc-700"
-              }`}
-            >
-              {/* Popular Highlight Pill */}
-              {plan.popular && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 text-[10px] font-bold text-white bg-blue-600 rounded-full uppercase tracking-wider shadow-md">
-                  Most Popular
-                </span>
-              )}
+        {/* Monthly / Yearly Toggle */}
+        <div className="relative inline-grid grid-cols-2 bg-[#161617] rounded-full p-1 w-[260px]">
+          <button
+            onClick={() => setBillingCycle("monthly")}
+            className="relative z-10 flex items-center justify-center py-2 rounded-full text-sm font-medium transition-colors duration-200"
+          >
+            <span className={billingCycle === "monthly" ? "text-black" : "text-slate-400"}>
+              Monthly
+            </span>
+          </button>
+          <button
+            onClick={() => setBillingCycle("yearly")}
+            className="relative z-10 flex items-center justify-center gap-1.5 py-2 rounded-full text-sm font-medium transition-colors duration-200"
+          >
+            <span className={billingCycle === "yearly" ? "text-black" : "text-slate-400"}>
+              Yearly
+            </span>
+            <span className="bg-[#d946ef] text-white text-[10px] font-bold rounded-full px-2 py-0.5">
+              25%
+            </span>
+          </button>
+          <motion.div
+            layoutId="cycle-toggle"
+            className="absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] bg-white rounded-full"
+            animate={{ x: billingCycle === "monthly" ? 0 : "100%" }}
+            transition={{ type: "spring", stiffness: 500, damping: 35 }}
+          />
+        </div>
+      </div>
 
-              {/* Plan Name & Core Header Metadata */}
-              <div>
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <h3 className="text-xl font-bold text-zinc-100">
-                    {plan.name}
-                  </h3>
-                  <div className="p-2 bg-zinc-950/60 rounded-lg border border-zinc-800/80">
-                    {plan.icon}
-                  </div>
-                </div>
-                <p className="text-xs text-zinc-400 leading-relaxed min-h-[36px]">
-                  {plan.description}
-                </p>
+      {/* ── Pricing Cards Grid ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {activePlans.map((plan) => {
+            const Icon = ICON_MAP[plan.icon];
+            const isPopular = plan.popular;
+            const isFree = plan.monthlyPrice === "$0";
 
-                {/* Dynamic Price Indicator Text Block */}
-                <div className="my-6 flex items-baseline gap-1">
-                  <span className="text-4xl font-black text-zinc-50 tracking-tight">
-                    {plan.price}
-                  </span>
-                  <span className="text-xs text-zinc-500 font-medium">
-                    {plan.period}
-                  </span>
-                </div>
+            const displayPrice =
+              billingCycle === "monthly"
+                ? plan.monthlyPrice
+                : getYearlyPrice(plan.monthlyPrice);
 
-                <hr className="border-zinc-800/80 mb-6" />
+            const displayPeriod =
+              billingCycle === "yearly" && !isFree ? "/year" : plan.period;
 
-                {/* Interactive Checkbox Checklist Array Mapping */}
-                <ul className="space-y-3">
-                  {plan.features.map((feature, fIdx) => (
-                    <li
-                      key={fIdx}
-                      className="flex items-start gap-2.5 text-xs text-zinc-300"
-                    >
-                      <div className="w-4 h-4 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
-                        <Check className="w-3 h-3" />
+            return (
+              <motion.div
+                key={plan.id}
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                className={`group rounded-2xl p-8 flex flex-col justify-between h-full transition-all duration-300 hover:-translate-y-1 ${
+                  isPopular
+                    ? "bg-[#151516] border border-white/20"
+                    : "bg-black border border-[#F6EFE1]/20"
+                }`}
+              >
+                <div>
+                  {/* Header: Icon+Name Left, Price Right */}
+                  <div className="flex justify-between items-start mb-8">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-lg bg-neutral-900 border border-white/10 p-2">
+                        <Icon className="w-4 h-4 text-[#F7C2FF]" />
                       </div>
-                      <span className="leading-normal">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+                      <h3 className="text-xl font-medium text-white">
+                        {plan.name}
+                      </h3>
+                    </div>
+                    <div className="text-right">
+                      <span className="block text-4xl font-bold tracking-tight text-white">
+                        {displayPrice}
+                      </span>
+                      <span className="text-xs text-neutral-400 font-normal">
+                        {displayPeriod}
+                      </span>
+                    </div>
+                  </div>
 
-              {/* Plan Action CTA Callout Anchor Point */}
-              <div className="mt-8">
+                  {/* Description */}
+                  <p className="text-sm font-medium text-white mb-5">
+                    {plan.description}
+                  </p>
+
+                  {/* Features */}
+                  <ul role="list" className="space-y-4 mb-10">
+                    {plan.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-3">
+                        <span className="bg-neutral-900 border border-white/10 rounded p-0.5 text-neutral-400 w-4 h-4 flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                          +
+                        </span>
+                        <span className="text-sm font-normal leading-relaxed text-neutral-500">
+                          {feature}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* CTA */}
                 <form action="/api/checkout_sessions" method="POST">
                   <input type="hidden" name="plan_id" value={plan.id} />
-                  <section>
-                    <button
-                      type="submit"
-                      role="link"
-                      className={`block w-full text-center text-xs font-semibold px-4 py-3 rounded-xl transition duration-200 ${
-                        plan.popular
-                          ? "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20"
-                          : "bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/50"
-                      }`}
-                    >
-                      Checkout
-                    </button>
-                  </section>
+                  <button
+                    type="submit"
+                    className={`group/btn w-full py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-all duration-200 cursor-pointer ${
+                      isPopular
+                        ? "bg-white text-black hover:bg-neutral-200"
+                        : "bg-[#151516] text-white hover:bg-[#1e1e1f]"
+                    }`}
+                  >
+                    Choose This Plan
+                    <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+                  </button>
                 </form>
-              </div>
-            </div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
+      </div>
 
-        {/* FAQ Accordion Section Layout Wrapper */}
-        <div className="max-w-3xl mx-auto border-t border-zinc-800 pt-16">
+      {/* ── FAQ Section ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-white/10 pt-16 pb-20">
+        <div className="max-w-3xl mx-auto">
           <div className="text-center mb-10">
-            <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 mb-3">
+            <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-neutral-900 border border-white/10 text-neutral-400 mb-3">
               <CircleQuestion className="w-5 h-5" />
             </div>
-            <h2 className="text-xl sm:text-2xl font-bold text-zinc-100">
+            <h2 className="text-xl sm:text-2xl font-bold text-white">
               Frequently Asked Questions
             </h2>
-            <p className="text-xs text-zinc-500 mt-1">
-              Have concerns regarding billing pipelines? Find instant clarify
-              indicators below.
+            <p className="text-xs text-neutral-500 mt-1">
+              Have concerns regarding billing? Find answers below.
             </p>
           </div>
 
@@ -309,31 +347,25 @@ const PricingPage = () => {
               return (
                 <div
                   key={idx}
-                  className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden transition-colors duration-200"
+                  className="bg-[#151516] border border-white/10 rounded-xl overflow-hidden transition-colors duration-200"
                 >
                   <button
                     onClick={() => toggleFaq(idx)}
-                    className="w-full flex items-center justify-between text-left p-4 gap-4 text-zinc-200 hover:text-white transition"
+                    className="w-full flex items-center justify-between text-left p-4 gap-4 text-white hover:text-white/80 transition cursor-pointer"
                   >
-                    <span className="text-sm font-semibold">
-                      {faq.question}
-                    </span>
+                    <span className="text-sm font-semibold">{faq.question}</span>
                     <ChevronDown
-                      className={`w-4 h-4 text-zinc-500 shrink-0 transition-transform duration-200 ${
-                        isOpen ? "rotate-180 text-blue-400" : ""
+                      className={`w-4 h-4 text-neutral-500 shrink-0 transition-transform duration-200 ${
+                        isOpen ? "rotate-180 text-white" : ""
                       }`}
                     />
                   </button>
-
-                  {/* Collapsible Accordion Element View Body */}
                   <div
                     className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                      isOpen
-                        ? "max-h-40 border-t border-zinc-800/60"
-                        : "max-h-0"
+                      isOpen ? "max-h-40 border-t border-white/10" : "max-h-0"
                     }`}
                   >
-                    <div className="p-4 text-xs text-zinc-400 leading-relaxed bg-zinc-900/50">
+                    <div className="p-4 text-xs text-neutral-500 leading-relaxed bg-[#151516]/50">
                       {faq.answer}
                     </div>
                   </div>

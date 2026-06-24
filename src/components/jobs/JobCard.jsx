@@ -1,8 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { motion } from "motion/react";
-import { MapPin, CircleDollar, Bookmark } from "@gravity-ui/icons";
+import { MapPin, CircleDollar } from "@gravity-ui/icons";
+import { Bookmark } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useSession } from "@/lib/auth-client";
+import { clientMutation, clientDelete } from "@/lib/core/client";
 
 const JOB_TYPE_STYLES = {
   "full-time": "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
@@ -31,8 +36,77 @@ function CompanyAvatar({ name, logo }) {
   );
 }
 
-export default function JobCard({ job }) {
-  const [isBookmarked, setIsBookmarked] = useState(false);
+export default function JobCard({ job, basePath = "/jobs", savedJobIds, onSavedChange }) {
+  const [bookmarkLoading, setBookmarkLoading] = useState(false);
+  const router = useRouter();
+  const { data: session } = useSession();
+  const isLoggedIn = !!session?.user;
+
+  const jobId = job._id?.$oid || job._id;
+  const jobIdStr = String(jobId || "");
+
+  // Determine bookmark state from parent's Set — no individual API calls
+  const isBookmarked = savedJobIds ? savedJobIds.has(jobIdStr) : false;
+
+  const handleBookmarkToggle = useCallback(
+    async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (bookmarkLoading) return;
+
+      // If not logged in, redirect to sign-in with return URL
+      if (!isLoggedIn) {
+        router.push("/auth/signIn?redirect=/jobs");
+        return;
+      }
+
+      setBookmarkLoading(true);
+
+      try {
+        if (isBookmarked) {
+          // Unsave: find the saved-job document and delete it
+          const { protectedClientFetch } = await import("@/lib/core/client");
+          const saved = await protectedClientFetch("/saved-jobs");
+          if (Array.isArray(saved)) {
+            const target = saved.find((s) => {
+              const sid =
+                s.jobId?.$oid ||
+                (typeof s.jobId === "object" ? String(s.jobId) : s.jobId);
+              return String(sid || "") === jobIdStr;
+            });
+            if (target) {
+              const docId = target._id?.$oid || target._id;
+              await clientDelete(`/saved-jobs/${docId}`);
+            }
+          }
+          onSavedChange?.(jobIdStr, false);
+        } else {
+          // Save
+          await clientMutation("/saved-jobs", {
+            jobId: jobIdStr,
+            jobTitle: job?.jobTitle,
+            companyName: job?.companyName,
+            companyLogo: job?.companyLogo,
+            location: job?.location,
+          });
+          onSavedChange?.(jobIdStr, true);
+        }
+      } catch (err) {
+        console.error("Failed to toggle bookmark:", err);
+      } finally {
+        setBookmarkLoading(false);
+      }
+    },
+    [
+      isBookmarked,
+      jobIdStr,
+      job,
+      bookmarkLoading,
+      onSavedChange,
+      isLoggedIn,
+      router,
+    ],
+  );
 
   if (!job) return null;
 
@@ -50,8 +124,6 @@ export default function JobCard({ job }) {
       : job.minSalary
         ? `${formatSalary(job.minSalary)} / yr`
         : "Negotiable";
-
-  const jobId = job._id?.$oid || job._id;
 
   const isHot = job.isFeatured || job.isHot;
   const isSenior =
@@ -75,30 +147,31 @@ export default function JobCard({ job }) {
         <div className="flex-1 min-w-0">
           {/* Title Row */}
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
+            <Link href={`${basePath}/${jobIdStr}`} className="min-w-0">
               <h3 className="text-base font-bold text-white truncate group-hover:text-purple-300 transition-colors">
                 {job.jobTitle}
               </h3>
               <p className="text-sm text-[#CCCCCC] mt-0.5 truncate">
                 {job.companyName || "Confidential"}
               </p>
-            </div>
+            </Link>
 
-            {/* Bookmark */}
+            {/* Bookmark — Lucide icon supports fill prop natively */}
             <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsBookmarked(!isBookmarked);
-              }}
-              className="flex-shrink-0 p-1.5 rounded-lg hover:bg-zinc-700/40 transition-colors mt-0.5"
+              onClick={handleBookmarkToggle}
+              disabled={bookmarkLoading}
+              className="flex-shrink-0 p-1.5 rounded-lg hover:bg-zinc-700/40 transition-colors mt-0.5 cursor-pointer disabled:opacity-50"
               aria-label={isBookmarked ? "Remove bookmark" : "Bookmark job"}
             >
-              {isBookmarked ? (
-                <Bookmark className="w-5 h-5 text-purple-400 fill-purple-400" />
-              ) : (
-                <Bookmark className="w-5 h-5 text-zinc-500 hover:text-zinc-300 transition-colors" />
-              )}
+              <Bookmark
+                size={20}
+                className={
+                  isBookmarked
+                    ? "text-[#3B82F6]"
+                    : "text-zinc-500 hover:text-zinc-300 transition-colors"
+                }
+                fill={isBookmarked ? "#3B82F6" : "none"}
+              />
             </button>
           </div>
 
@@ -147,8 +220,8 @@ export default function JobCard({ job }) {
         {/* Easy Apply Button */}
         <div className="flex-shrink-0 flex items-center self-center">
           <a
-            href={`/jobs/${jobId}`}
-            className="inline-flex items-center gap-1.5 bg-[#10B981] hover:bg-emerald-600 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors duration-200 whitespace-nowrap"
+            href={`${basePath}/${jobId}`}
+            className="inline-flex items-center gap-1.5 bg-gradient-to-r from-[#6B63FF] to-[#5A54F5] hover:shadow-lg hover:shadow-[#6B63FF]/25 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-all duration-200 whitespace-nowrap"
           >
             Easy Apply
           </a>

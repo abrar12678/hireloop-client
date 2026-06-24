@@ -33,7 +33,11 @@ export default function Navbar() {
   }, []);
 
   const handleSignOut = async () => {
-    await signOut();
+    try {
+      await signOut();
+    } catch {}
+    // Small delay ensures the session cookie is fully cleared before navigation
+    setTimeout(() => window.location.replace("/"), 150);
   };
 
   const dashboardLinks = {

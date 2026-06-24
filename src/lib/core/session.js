@@ -2,20 +2,39 @@ import { redirect } from "next/navigation";
 import { auth } from "../auth";
 import { headers } from "next/headers";
 
-export const getUserSession = async () => {
-  const session = await auth.api.getSession({
-    headers: await headers(), // some endpoints might require headers
-  });
+const SESSION_TIMEOUT_MS = 5000; // 5 seconds — fail fast instead of hanging forever
 
-  return session?.user || null;
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Session check timed out")), ms),
+    ),
+  ]);
+}
+
+export const getUserSession = async () => {
+  try {
+    const session = await withTimeout(
+      auth.api.getSession({ headers: await headers() }),
+      SESSION_TIMEOUT_MS,
+    );
+    return session?.user || null;
+  } catch {
+    return null; // Timeout or auth error — treat as not logged in
+  }
 };
 
 export const getUserToken = async () => {
-  const session = await auth.api.getSession({
-    headers: await headers(), // some endpoints might require headers
-  });
-
-  return session?.session?.token || null;
+  try {
+    const session = await withTimeout(
+      auth.api.getSession({ headers: await headers() }),
+      SESSION_TIMEOUT_MS,
+    );
+    return session?.session?.token || null;
+  } catch {
+    return null;
+  }
 };
 
 export const requireRole = async (role) => {

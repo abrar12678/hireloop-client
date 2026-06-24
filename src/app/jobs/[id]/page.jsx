@@ -128,7 +128,7 @@ const Page = async ({ params }) => {
 
   return (
     <main className="w-full min-h-screen bg-[#0a0a0f] text-zinc-100">
-      <div className="max-w-6xl mx-auto px-5 sm:px-8 lg:px-10 pt-8 pb-20">
+      <div className="max-w-6xl mx-auto px-5 sm:px-8 lg:px-10 pt-24 pb-20 md:pt-28">
         {/* ── Job Header ── */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 mb-8">
           <div className="space-y-3">
@@ -154,7 +154,7 @@ const Page = async ({ params }) => {
           </div>
 
           <Link
-            href={`/jobs/${id}/apply`}
+            href={`/auth/signIn?redirect=/dashboard/seeker/jobs/${id}`}
             className="inline-flex items-center gap-2 bg-[#6366F1] hover:bg-[#5558E6] text-white font-semibold px-8 py-3.5 rounded-xl transition-colors shadow-lg shadow-[#6366F1]/20 flex-shrink-0"
           >
             Apply Now

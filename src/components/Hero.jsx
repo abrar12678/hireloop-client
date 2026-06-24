@@ -157,7 +157,7 @@ export default function Hero() {
   };
 
   return (
-    <section className="relative min-h-screen bg-[#050505] -mt-20 overflow-x-hidden overflow-y-hidden">
+    <section className="relative min-h-screen bg-[#050505] overflow-x-hidden overflow-y-hidden">
       {/* Radial gradient background — dark purple center fading to black edges */}
       <div className="absolute inset-0 pointer-events-none">
         <div

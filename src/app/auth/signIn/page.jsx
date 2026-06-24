@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card } from "@heroui/react";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -46,8 +46,19 @@ const getDashboardPath = (role) => {
   return map[role] || "/dashboard/seeker";
 };
 
+/**
+ * Security check: only allow redirect URLs that start with /dashboard/
+ * This prevents open-redirect attacks and ensures logged-in users
+ * are NEVER sent to public pages after login.
+ */
+const isSafeRedirect = (url) => {
+  if (!url || typeof url !== "string") return false;
+  return url.startsWith("/dashboard/");
+};
+
 const SignInPage = () => {
-  const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawRedirect = searchParams.get("redirect") || "";
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -72,13 +83,27 @@ const SignInPage = () => {
           style: { background: "#1a1a2e", color: "#fff" },
         });
 
-        /* Fetch the session to get the user role, then redirect */
+        /* Fetch session to get user role */
         const { data: sessionData } = await authClient.getSession();
         const role = sessionData?.session?.user?.role || sessionData?.user?.role || "seeker";
 
         setTimeout(() => {
-          router.push(getDashboardPath(role));
-          router.refresh();
+          if (isSafeRedirect(rawRedirect)) {
+            /*
+             * Safe redirect flow (e.g., job apply from public page):
+             * 1. Replace sign-in entry in history with dashboard jobs page
+             *    so "back" from target lands on a dashboard page, NOT a public page.
+             * 2. PUSH (not replace) the actual target so it sits on top.
+             */
+            const fallback = getDashboardPath(role) + "/jobs";
+            window.history.replaceState(null, "", fallback);
+            window.location.href = rawRedirect;
+          } else {
+            /* Normal login — always go to role-specific dashboard.
+             * window.location.replace removes sign-in from browser history,
+             * so the back button can NEVER return to the landing page. */
+            window.location.replace(getDashboardPath(role));
+          }
         }, 1200);
       }
 

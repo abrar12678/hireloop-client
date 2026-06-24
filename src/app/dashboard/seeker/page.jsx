@@ -1,67 +1,57 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
+import { protectedClientFetch } from "@/lib/core/client";
 import {
   Bookmark,
   FileText,
   CalendarCheck,
   CircleCheck,
   RefreshCw,
-  Bell,
-  Mail,
   Plus,
-  ArrowRight,
   User,
 } from "lucide-react";
 
 /* ═══════════════════════════════════════════════════
-   DATA
+   HELPERS
    ═══════════════════════════════════════════════════ */
 
-const STATS = [
-  { id: "saved", title: "Saved Jobs", value: 12, Icon: Bookmark, color: "#3B82F6" },
-  { id: "applied", title: "Applications Submitted", value: 24, Icon: FileText, color: "#ffffff" },
-  { id: "interviews", title: "Interviews Scheduled", value: 3, Icon: CalendarCheck, color: "#FACC15" },
-  { id: "offers", title: "Offers Received", value: 1, Icon: CircleCheck, color: "#22C55E" },
-];
+function formatRelativeTime(dateString) {
+  if (!dateString) return "just now";
+  const now = Date.now();
+  const then = new Date(dateString).getTime();
+  const diffMs = now - then;
 
-const STATUS_BARS = [
-  { label: "Applied", value: 10, color: "#ffffff" },
-  { label: "Under Review", value: 6, color: "#F59E0B" },
-  { label: "Shortlisted", value: 5, color: "#3B82F6" },
-  { label: "Rejected", value: 2, color: "#EF4444" },
-  { label: "Offered", value: 1, color: "#22C55E" },
-];
+  const seconds = Math.floor(diffMs / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  const weeks = Math.floor(days / 7);
+  const months = Math.floor(days / 30);
 
-const ACTIVITIES = [
-  {
-    id: 1,
-    Icon: RefreshCw,
-    iconBg: "#3B82F6",
-    text: (
-      <>
-        Application for Senior Product Designer at TechFlow updated to{" "}
-        <span className="text-[#F59E0B] font-medium cursor-pointer hover:underline">Under Review</span>
-      </>
-    ),
-    time: "2 hours ago",
-  },
-  {
-    id: 2,
-    Icon: Bell,
-    iconBg: "#3A3A40",
-    text: "New Job Alert: Lead Frontend Engineer at FinGrid matches your profile.",
-    time: "5 hours ago",
-  },
-  {
-    id: 3,
-    Icon: Mail,
-    iconBg: "#22C55E",
-    text: "You have a new message from Sarah Jenkins (Hiring Manager at CloudApps).",
-    time: "1 day ago",
-  },
-];
+  if (seconds < 60) return "just now";
+  if (minutes < 60) return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
+  if (hours < 24) return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
+  if (days < 7) return `${days} day${days !== 1 ? "s" : ""} ago`;
+  if (weeks < 5) return `${weeks} week${weeks !== 1 ? "s" : ""} ago`;
+  return `${months} month${months !== 1 ? "s" : ""} ago`;
+}
+
+const STATUS_COLOR_MAP = {
+  applied: "#ffffff",
+  "under review": "#F59E0B",
+  review: "#F59E0B",
+  shortlisted: "#3B82F6",
+  rejected: "#EF4444",
+  offered: "#22C55E",
+};
+
+function getStatusColor(status) {
+  if (!status) return "#ffffff";
+  return STATUS_COLOR_MAP[status.toLowerCase()] || "#ffffff";
+}
 
 /* ═══════════════════════════════════════════════════
    REUSABLE COMPONENTS
@@ -124,25 +114,26 @@ function ProfileCard({ user }) {
       <p className="text-[#71717A] text-[14px] mt-1">
         {user?.email || "alex.rivera@example.com"}
       </p>
-      <button
+      <a
+        href="/dashboard/seeker/settings"
         aria-label="Edit Profile"
-        className="mt-4 w-full h-10 rounded-[10px] border border-[#3A3A40] text-white text-[14px] font-medium hover:bg-[#222228] transition-colors duration-200"
+        className="mt-4 w-full h-10 rounded-[10px] border border-[#3A3A40] text-white text-[14px] font-medium hover:bg-[#222228] transition-colors duration-200 flex items-center justify-center"
       >
         Edit Profile
-      </button>
+      </a>
     </div>
   );
 }
 
 /* ─── Application Status Card ─── */
-function ApplicationStatusCard() {
-  const maxValue = Math.max(...STATUS_BARS.map((s) => s.value));
+function ApplicationStatusCard({ statusBars }) {
+  const maxValue = Math.max(...statusBars.map((s) => s.value), 1);
 
   return (
     <div className="bg-[#1B1B1F] border border-white/[0.05] rounded-[14px] p-5 h-[220px] flex flex-col shadow-[0_2px_8px_rgba(0,0,0,0.18)]">
       <h4 className="text-[16px] font-semibold text-white mb-3">Application Status</h4>
       <div className="flex-1 flex flex-col justify-center">
-        {STATUS_BARS.map((bar) => (
+        {statusBars.map((bar) => (
           <ProgressBar
             key={bar.label}
             label={bar.label}
@@ -175,7 +166,7 @@ function ActivityItem({ Icon, iconBg, text, time }) {
 }
 
 /* ─── Recent Activity Section ─── */
-function RecentActivitySection() {
+function RecentActivitySection({ activities }) {
   return (
     <section aria-label="Recent Activity">
       <div className="flex items-center justify-between mb-3">
@@ -188,23 +179,46 @@ function RecentActivitySection() {
         </button>
       </div>
       <div className="flex flex-col gap-3">
-        {ACTIVITIES.map((act) => (
-          <ActivityItem key={act.id} {...act} />
-        ))}
+        {activities.length > 0 ? (
+          activities.map((act) => (
+            <ActivityItem key={act.id} {...act} />
+          ))
+        ) : (
+          <p className="text-[14px] text-[#71717A]">No recent activity</p>
+        )}
       </div>
     </section>
   );
 }
 
 /* ─── Floating Action Button ─── */
-function FloatingActionButton() {
+function FloatingActionButton({ onNavigate }) {
+  const [showTooltip, setShowTooltip] = useState(false);
+
   return (
-    <button
-      aria-label="Quick action"
-      className="fixed bottom-8 right-8 w-14 h-14 rounded-full bg-white text-black flex items-center justify-center shadow-[0_8px_20px_rgba(0,0,0,0.30)] hover:scale-105 transition-transform duration-200 z-40 cursor-pointer"
-    >
-      <Plus size={24} aria-hidden="true" />
-    </button>
+    <div className="fixed bottom-8 right-8 z-40 flex items-end gap-3">
+      {/* Tooltip Sidebar */}
+      <div
+        className={`relative bg-white text-black rounded-[12px] px-4 py-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.30)] flex items-center gap-2 whitespace-nowrap transition-all duration-200 origin-right ${
+          showTooltip ? "opacity-100 scale-100 translate-x-0" : "opacity-0 scale-95 translate-x-2 pointer-events-none"
+        }`}
+      >
+        <span className="text-[14px] font-medium">Apply for a job</span>
+        <div
+          className="w-3 h-3 bg-white rotate-45 absolute -right-1.5 top-1/2 -translate-y-1/2"
+          style={{ clipPath: "polygon(0 0, 100% 0, 100% 100%)" }}
+        />
+      </div>
+      <button
+        aria-label="Apply for a job"
+        className="w-14 h-14 rounded-full bg-white text-black flex items-center justify-center shadow-[0_8px_20px_rgba(0,0,0,0.30)] hover:scale-105 transition-transform duration-200 cursor-pointer"
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+        onClick={onNavigate}
+      >
+        <Plus size={24} aria-hidden="true" />
+      </button>
+    </div>
   );
 }
 
@@ -212,10 +226,152 @@ function FloatingActionButton() {
    SEEKER DASHBOARD PAGE
    ═══════════════════════════════════════════════════ */
 export default function SeekerDashboard() {
-  const { data: session, isPending } = useSession();
+  const router = useRouter();
+  const { data: session, isPending: sessionPending } = useSession();
   const user = session?.user;
 
-  if (isPending) {
+  const [dataLoading, setDataLoading] = useState(true);
+  const [savedJobs, setSavedJobs] = useState([]);
+  const [applications, setApplications] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchData() {
+      setDataLoading(true);
+      try {
+        const [savedRes, appsRes] = await Promise.all([
+          protectedClientFetch("/saved-jobs"),
+          protectedClientFetch("/applications"),
+        ]);
+        if (!cancelled) {
+          setSavedJobs(Array.isArray(savedRes) ? savedRes : []);
+          setApplications(Array.isArray(appsRes) ? appsRes : []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch dashboard data:", err);
+      } finally {
+        if (!cancelled) setDataLoading(false);
+      }
+    }
+
+    // Only fetch once session is ready
+    if (!sessionPending) {
+      fetchData();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionPending]);
+
+  const isLoading = sessionPending || dataLoading;
+
+  /* ─── Derived: STATS ─── */
+  const stats = [
+    {
+      id: "saved",
+      title: "Saved Jobs",
+      value: savedJobs.length,
+      Icon: Bookmark,
+      color: "#3B82F6",
+    },
+    {
+      id: "applied",
+      title: "Applications Submitted",
+      value: applications.length,
+      Icon: FileText,
+      color: "#ffffff",
+    },
+    {
+      id: "interviews",
+      title: "Interviews Scheduled",
+      value: applications.filter(
+        (a) =>
+          a.status?.toLowerCase() === "shortlisted" ||
+          a.status?.toLowerCase() === "under review"
+      ).length,
+      Icon: CalendarCheck,
+      color: "#FACC15",
+    },
+    {
+      id: "offers",
+      title: "Offers Received",
+      value: applications.filter(
+        (a) => a.status?.toLowerCase() === "offered"
+      ).length,
+      Icon: CircleCheck,
+      color: "#22C55E",
+    },
+  ];
+
+  /* ─── Derived: STATUS_BARS ─── */
+  const countByStatus = (matchStatuses) =>
+    applications.filter((a) =>
+      matchStatuses.some(
+        (s) => a.status?.toLowerCase() === s.toLowerCase()
+      )
+    ).length;
+
+  const statusBars = [
+    { label: "Applied", value: countByStatus(["applied"]), color: "#ffffff" },
+    { label: "Under Review", value: countByStatus(["under review", "review"]), color: "#F59E0B" },
+    { label: "Shortlisted", value: countByStatus(["shortlisted"]), color: "#3B82F6" },
+    { label: "Rejected", value: countByStatus(["rejected"]), color: "#EF4444" },
+    { label: "Offered", value: countByStatus(["offered"]), color: "#22C55E" },
+  ];
+
+  /* ─── Derived: ACTIVITIES (recent applications within 1 week) ─── */
+  const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+
+  const recentApps = [...applications]
+    .filter((a) => {
+      const created = new Date(a.createdAt || 0).getTime();
+      return (now - created) <= ONE_WEEK_MS;
+    })
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt || 0).getTime() -
+        new Date(a.createdAt || 0).getTime()
+    )
+    .slice(0, 3);
+
+  const activities = recentApps.map((app, idx) => {
+    const jobTitle =
+      app.jobDetails?.title ||
+      app.job?.title ||
+      "a position";
+    const companyName =
+      app.jobDetails?.companyName ||
+      app.jobDetails?.company?.name ||
+      app.job?.companyName ||
+      app.job?.company?.name ||
+      "a company";
+    const status = app.status || "applied";
+    const statusColor = getStatusColor(status);
+
+    return {
+      id: app._id || idx,
+      Icon: RefreshCw,
+      iconBg: "#3B82F6",
+      text: (
+        <>
+          Application for {jobTitle} at {companyName} is{" "}
+          <span
+            className="font-medium cursor-pointer hover:underline"
+            style={{ color: statusColor }}
+          >
+            {status.charAt(0).toUpperCase() + status.slice(1)}
+          </span>
+        </>
+      ),
+      time: formatRelativeTime(app.createdAt),
+    };
+  });
+
+  /* ─── Loading ─── */
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]" role="status" aria-label="Loading dashboard">
         <div className="w-7 h-7 border-2 border-[#3B82F6] border-t-transparent rounded-full animate-spin" />
@@ -226,9 +382,9 @@ export default function SeekerDashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Statistic Cards — 4 columns */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {STATS.map((stat, i) => (
+      {/* Statistic Cards — 4 columns, first card "Saved Jobs" wider */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr] gap-4">
+        {stats.map((stat, i) => (
           <StatisticCard key={stat.id} {...stat} index={i} />
         ))}
       </div>
@@ -236,14 +392,14 @@ export default function SeekerDashboard() {
       {/* Profile + Application Status — 2 equal cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <ProfileCard user={user} />
-        <ApplicationStatusCard />
+        <ApplicationStatusCard statusBars={statusBars} />
       </div>
 
       {/* Recent Activity */}
-      <RecentActivitySection />
+      <RecentActivitySection activities={activities} />
 
       {/* FAB */}
-      <FloatingActionButton />
+      <FloatingActionButton onNavigate={() => router.push("/dashboard/seeker/jobs")} />
     </div>
   );
 }

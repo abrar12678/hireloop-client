@@ -23,7 +23,7 @@ export default async function Page({ searchParams }) {
   }
 
   return (
-    <div className="w-full min-h-screen bg-[#0a0a0f] p-6 md:p-12 text-white">
+    <div className="w-full min-h-screen bg-[#0a0a0f] pt-24 pb-6 px-6 md:pt-28 md:pb-12 text-white">
       <div className="max-w-7xl mx-auto mb-8">
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
           Browse Jobs

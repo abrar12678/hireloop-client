@@ -1,10 +1,10 @@
 import { getJobById } from "@/lib/api/jobs";
 import { getUserSession } from "@/lib/core/session";
-import { redirect } from "next/navigation";
 import React from "react";
 import JobApply from "./JobApply";
 import { getApplicationsByApplicant } from "@/lib/api/applications";
 import Link from "next/link";
+import RedirectToSignIn from "@/components/RedirectToSignIn";
 // Importing a few Gravity UI icons to make it look clean and consistent
 import { ShieldExclamation, CircleInfo, Rocket } from "@gravity-ui/icons";
 import { getPlanById } from "@/lib/api/plans";
@@ -15,7 +15,8 @@ const ApplyPage = async ({ params }) => {
   const user = await getUserSession();
   console.log("Current User Session:", user);
   if (!user) {
-    redirect(`/auth/signIn?redirect=/jobs/${id}/apply`);
+    // Redirect to sign-in, then to the DASHBOARD version of this job
+    return <RedirectToSignIn redirectTo={`/dashboard/seeker/jobs/${id}`} />;
   }
 
   // Auth Role Guard Screen
@@ -60,7 +61,7 @@ const ApplyPage = async ({ params }) => {
   );
 
   return (
-    <div className="w-full min-h-screen bg-zinc-950 text-zinc-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="w-full min-h-screen bg-zinc-950 text-zinc-50 pt-24 pb-12 px-4 sm:pt-28 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto space-y-8">
         {/* 1. Usage & Quota Tracker Card */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
@@ -107,7 +108,7 @@ const ApplyPage = async ({ params }) => {
                 unlimited job submissions.
               </p>
               <Link
-                href="/plans"
+                href="/dashboard/seeker/billing"
                 className="inline-block mt-2 sm:mt-0 whitespace-nowrap text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg transition"
               >
                 View Plans

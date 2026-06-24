@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession, signOut } from "@/lib/auth-client";
 import React, { useState } from "react";
 import {
@@ -111,6 +111,7 @@ function UserProfileSummary({ user }) {
 /* ─── Sidebar Content (shared between desktop & mobile) ─── */
 function SidebarContent({ user, onNavClick }) {
   const pathname = usePathname();
+  const router = useRouter();
   const navItems = navLinksMap[user?.role] ?? seekerNavLinks;
 
   const isActive = (href) => {
@@ -119,7 +120,20 @@ function SidebarContent({ user, onNavClick }) {
   };
 
   const handleSignOut = async () => {
-    await signOut();
+    try {
+      // Clear notifications from DB and session flag
+      try {
+        const res = await fetch("/api/backend/notifications", {
+          method: "DELETE",
+          credentials: "include",
+        });
+        await res.json();
+      } catch {}
+      sessionStorage.removeItem("hireloop_welcomed");
+      await signOut();
+    } catch {}
+    // Small delay ensures the session cookie is fully cleared before navigation
+    setTimeout(() => window.location.replace("/"), 150);
   };
 
   return (
@@ -156,8 +170,9 @@ function SidebarContent({ user, onNavClick }) {
         {/* Role-specific CTA: Post Resume (Seeker) / Profile (Recruiter/Admin) */}
         {user?.role === "seeker" ? (
           <button
+            onClick={() => router.push("/dashboard/seeker/settings")}
             aria-label="Post Resume"
-            className="w-full h-11 bg-white text-black text-[15px] font-medium rounded-[10px] hover:bg-zinc-200 transition-colors duration-200 mb-2"
+            className="w-full h-11 bg-white text-black text-[15px] font-medium rounded-[10px] hover:bg-zinc-200 transition-colors duration-200 mb-2 cursor-pointer"
           >
             Post Resume
           </button>
