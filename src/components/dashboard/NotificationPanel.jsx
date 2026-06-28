@@ -12,6 +12,7 @@ import {
   XCircle,
   Award,
   Check,
+  MessageSquare,
 } from "lucide-react";
 
 /* ═══════════════════════════════════════════════════════════════
@@ -250,6 +251,35 @@ export default function NotificationPanel() {
     }
   }, []);
 
+  /* ─── Real-time notification via Socket.io ─── */
+  useEffect(() => {
+    if (!user?.id) return;
+
+    function handleRealtimeNotification(event) {
+      const data = event.detail;
+      if (!data) return;
+
+      // Map socket notification to panel format
+      const newNotif = {
+        id: data._id || `realtime-${data.type}-${Date.now()}`,
+        type: data.type,
+        key: data._id || `realtime-${data.type}-${Date.now()}`,
+        title: data.title || "Notification",
+        description: data.message || "",
+        time: data.createdAt || new Date().toISOString(),
+        icon: Bell,
+        color: "#3B82F6",
+      };
+
+      setNotifications((prev) => [newNotif, ...prev].slice(0, 50));
+      setUnreadCount((prev) => prev + 1);
+      showBrowserNotification(newNotif);
+    }
+
+    window.addEventListener("realtime-notification", handleRealtimeNotification);
+    return () => window.removeEventListener("realtime-notification", handleRealtimeNotification);
+  }, [user?.id]);
+
   /* ─── Toggle panel via custom event ─── */
   useEffect(() => {
     function handleToggle() {
@@ -292,44 +322,70 @@ export default function NotificationPanel() {
   /* ─── Fetch notifications ─── */
   const fetchNotifications = useCallback(async () => {
     if (loading) return;
-    if (!user?.id || user?.role !== "seeker") return;
+    if (!user?.id) return;
 
     setLoading(true);
     try {
-      const [statsResult, jobsResult] = await Promise.all([
-        protectedClientFetch("/api/seeker/stats"),
-        clientFetch("/api/jobs?status=active&perPage=5"),
-      ]);
+      if (user.role === "seeker") {
+        // Seeker: use existing stats-based approach
+        const [statsResult, jobsResult] = await Promise.all([
+          protectedClientFetch("/api/seeker/stats"),
+          clientFetch("/api/jobs?status=active&perPage=5"),
+        ]);
 
-      const applicationNotifs = mapApplicationsToNotifications(
-        statsResult?.recentApplications
-      );
-      const jobNotifs = mapJobsToNotifications(
-        Array.isArray(jobsResult)
-          ? jobsResult
-          : jobsResult?.jobs || jobsResult?.data || []
-      );
+        const applicationNotifs = mapApplicationsToNotifications(
+          statsResult?.recentApplications
+        );
+        const jobNotifs = mapJobsToNotifications(
+          Array.isArray(jobsResult)
+            ? jobsResult
+            : jobsResult?.jobs || jobsResult?.data || []
+        );
 
-      // Combine and sort by time (newest first)
-      const combined = [...applicationNotifs, ...jobNotifs].sort(
-        (a, b) => new Date(b.time || 0).getTime() - new Date(a.time || 0).getTime()
-      );
+        const combined = [...applicationNotifs, ...jobNotifs].sort(
+          (a, b) => new Date(b.time || 0).getTime() - new Date(a.time || 0).getTime()
+        );
 
-      setNotifications(combined);
+        setNotifications(combined);
 
-      // Determine unread by comparing with localStorage
-      const seenIds = getSeenNotificationIds();
-      const allIds = combined.map(buildNotificationId);
-      const newUnreadCount = allIds.filter((id) => !seenIds.includes(id)).length;
-      setUnreadCount(newUnreadCount);
+        const seenIds = getSeenNotificationIds();
+        const allIds = combined.map(buildNotificationId);
+        const newUnreadCount = allIds.filter((id) => !seenIds.includes(id)).length;
+        setUnreadCount(newUnreadCount);
 
-      // Show browser notifications for truly new items
-      allIds.forEach((id, idx) => {
-        if (!seenIds.includes(id)) {
-          const notif = combined[idx];
-          showBrowserNotification(notif);
-        }
-      });
+        allIds.forEach((id, idx) => {
+          if (!seenIds.includes(id)) {
+            const notif = combined[idx];
+            showBrowserNotification(notif);
+          }
+        });
+      } else {
+        // Recruiter / Admin: use backend notifications API
+        const notifs = await protectedClientFetch("/api/notifications");
+        const notifList = Array.isArray(notifs) ? notifs : [];
+
+        const mapped = notifList.map((n) => {
+          let icon = Bell;
+          let color = "#ffffff";
+          const t = (n.type || "").toLowerCase();
+          if (t.includes("application")) { icon = Briefcase; color = "#22C55E"; }
+          else if (t.includes("message")) { icon = MessageSquare; color = "#A855F7"; }
+          else if (t.includes("job")) { icon = RefreshCw; color = "#3B82F6"; }
+          return {
+            id: n._id || `db-${n.type}-${n.createdAt}`,
+            type: n.type,
+            key: n._id || `db-${n.type}-${n.createdAt}`,
+            title: n.title || "Notification",
+            description: n.message || "",
+            time: n.createdAt,
+            icon,
+            color,
+          };
+        });
+
+        setNotifications(mapped);
+        setUnreadCount(mapped.filter((n) => !n.read).length);
+      }
     } catch (err) {
       console.warn("[NotificationPanel] Failed to fetch notifications:", err);
     } finally {
@@ -374,24 +430,8 @@ export default function NotificationPanel() {
     }
   }, [open]);
 
-  /* ─── Non-seeker or loading session ─── */
+  /* ─── Loading session ─── */
   if (sessionLoading) return null;
-
-  if (user?.role && user.role !== "seeker") {
-    return (
-      open && (
-        <div
-          ref={panelRef}
-          className="fixed top-[72px] right-[280px] z-50 w-[400px] max-w-[calc(100vw-2rem)] bg-[#1B1B1F] border border-white/[0.06] rounded-[14px] shadow-[0_8px_32px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-200 max-xl:right-4"
-        >
-          <EmptyState
-            message="Notifications coming soon!"
-            subMessage="We're building notification support for your role. Stay tuned!"
-          />
-        </div>
-      )
-    );
-  }
 
   /* ─── Render Panel ─── */
   if (!open) return null;

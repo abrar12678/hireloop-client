@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Briefcase,
   TrendingUp,
@@ -10,126 +11,37 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
-  Trash2,
-  X,
   CheckCircle2,
   XCircle,
   FileEdit,
   BarChart3,
+  AlertTriangle,
+  Loader2,
+  MoreVertical,
 } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
+import {
+  protectedClientFetch,
+  clientMutation,
+  clientFetch,
+} from "@/lib/core/client";
 
-/* ──────────────────────── MOCK DATA ──────────────────────── */
-
-const MOCK_JOBS = [
-  {
-    id: "JOB-001",
-    title: "Senior Frontend Developer",
-    company: "TechFlow",
-    category: "Technology",
-    type: "Full-time",
-    status: "Active",
-    datePosted: "2025-01-15",
-    applications: 142,
-  },
-  {
-    id: "JOB-002",
-    title: "Product Designer",
-    company: "FinGrid",
-    category: "Design",
-    type: "Full-time",
-    status: "Active",
-    datePosted: "2025-01-12",
-    applications: 98,
-  },
-  {
-    id: "JOB-003",
-    title: "Backend Engineer",
-    company: "CloudApps",
-    category: "Technology",
-    type: "Contract",
-    status: "Active",
-    datePosted: "2025-01-10",
-    applications: 76,
-  },
-  {
-    id: "JOB-004",
-    title: "DevOps Engineer",
-    company: "DataSync",
-    category: "Technology",
-    type: "Full-time",
-    status: "Closed",
-    datePosted: "2024-12-20",
-    applications: 204,
-  },
-  {
-    id: "JOB-005",
-    title: "Marketing Manager",
-    company: "NeuralPath",
-    category: "Marketing",
-    type: "Full-time",
-    status: "Active",
-    datePosted: "2025-01-18",
-    applications: 63,
-  },
-  {
-    id: "JOB-006",
-    title: "Data Scientist",
-    company: "DesignLab",
-    category: "Technology",
-    type: "Full-time",
-    status: "Active",
-    datePosted: "2025-01-08",
-    applications: 117,
-  },
-  {
-    id: "JOB-007",
-    title: "Sales Representative",
-    company: "ScaleUp",
-    category: "Sales",
-    type: "Full-time",
-    status: "Closed",
-    datePosted: "2024-12-05",
-    applications: 189,
-  },
-  {
-    id: "JOB-008",
-    title: "HR Coordinator",
-    company: "Quantum Labs",
-    category: "HR",
-    type: "Part-time",
-    status: "Active",
-    datePosted: "2025-01-20",
-    applications: 41,
-  },
-  {
-    id: "JOB-009",
-    title: "Full Stack Developer",
-    company: "TechFlow",
-    category: "Technology",
-    type: "Full-time",
-    status: "Draft",
-    datePosted: "2025-01-22",
-    applications: 0,
-  },
-  {
-    id: "JOB-010",
-    title: "UI/UX Designer",
-    company: "FinGrid",
-    category: "Design",
-    type: "Contract",
-    status: "Active",
-    datePosted: "2025-01-14",
-    applications: 85,
-  },
-];
-
-const CATEGORIES = ["All Categories", "Technology", "Design", "Marketing", "Sales", "HR"];
 const ITEMS_PER_PAGE = 6;
 
-/* ──────────────────── HELPER: get initials ───────────────── */
+const STATUS_TABS = ["All", "Active", "Closed", "Draft", "Flagged"];
+const STATUS_DROPDOWN_OPTIONS = [
+  "All Statuses",
+  "Active",
+  "Closed",
+  "Draft",
+  "Paused",
+  "Flagged",
+];
+
+/* ──────────────────── HELPERS ───────────────── */
 
 function getInitials(company) {
+  if (!company) return "?";
   return company
     .split(/\s+/)
     .map((w) => w[0])
@@ -139,12 +51,37 @@ function getInitials(company) {
 }
 
 function formatDate(dateStr) {
+  if (!dateStr) return "—";
   const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("en-US", {
     month: "short",
     day: "2-digit",
     year: "numeric",
   });
+}
+
+function getJobId(job) {
+  return job._id?.$oid || job._id || job.id || "";
+}
+
+function mapJobFromApi(job) {
+  const id = getJobId(job);
+  return {
+    id,
+    _id: id,
+    title: job.jobTitle || job.title || "Untitled",
+    companyName: job.companyName || "",
+    company: job.companyName || "",
+    category: job.jobCategory || job.category || "Uncategorized",
+    jobType: job.jobType || job.type || "",
+    type: job.jobType || job.type || "",
+    status: job.status || "draft",
+    createdAt: job.createdAt || "",
+    datePosted: job.createdAt || "",
+    applicantCount: job.applicantCount ?? 0,
+    applications: job.applicantCount ?? 0,
+  };
 }
 
 /* ═══════════════════════ SUB-COMPONENTS ═══════════════════════ */
@@ -180,24 +117,36 @@ function KpiStatCard({ icon: Icon, label, value, change, changeType }) {
 
 /* 2. StatusBadge */
 function StatusBadge({ status }) {
-  const s = status.toLowerCase();
+  const s = (status || "").toLowerCase();
   let classes = "";
+  let Icon = null;
+
   if (s === "active") {
     classes = "bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30";
+    Icon = CheckCircle2;
   } else if (s === "closed") {
     classes = "bg-white/[0.06] text-[#A1A1AA] border-white/[0.08]";
+    Icon = XCircle;
+  } else if (s === "draft") {
+    classes = "bg-amber-500/15 text-amber-400 border-amber-500/30";
+    Icon = FileEdit;
+  } else if (s === "paused") {
+    classes = "bg-sky-500/15 text-sky-400 border-sky-500/30";
+    Icon = Clock;
+  } else if (s === "flagged") {
+    classes = "bg-red-500/15 text-red-400 border-red-500/30";
+    Icon = AlertTriangle;
   } else {
     classes = "bg-white/[0.06] text-[#A1A1AA] border-white/[0.08]";
   }
+
   return (
     <span
       className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border capitalize ${classes}`}
       role="status"
       aria-label={`Status: ${status}`}
     >
-      {s === "active" && <CheckCircle2 size={12} />}
-      {s === "closed" && <XCircle size={12} />}
-      {s === "draft" && <FileEdit size={12} />}
+      {Icon && <Icon size={12} />}
       {status}
     </span>
   );
@@ -224,42 +173,30 @@ function JobIcon({ company }) {
   );
 }
 
-/* 5. ToggleGroup */
-function ToggleGroup({ activeTab, onTabChange, activeCount, closedCount }) {
+/* 5. StatusTabGroup — replaces ToggleGroup with more tabs */
+function StatusTabGroup({ activeTab, onTabChange }) {
   return (
     <div
       className="inline-flex items-center bg-[#1B1B1F] rounded-[10px] p-1 gap-0.5"
       role="tablist"
       aria-label="Job status filter"
     >
-      <button
-        role="tab"
-        aria-selected={activeTab === "Active"}
-        aria-controls="jobs-panel"
-        onClick={() => onTabChange("Active")}
-        className={`px-3.5 py-1.5 rounded-[10px] text-sm font-medium transition-colors ${
-          activeTab === "Active"
-            ? "bg-[#3A3A40] text-white"
-            : "text-[#A1A1AA] hover:text-white hover:bg-white/[0.04]"
-        }`}
-      >
-        Active
-        <span className="ml-1.5 text-xs opacity-70">({activeCount})</span>
-      </button>
-      <button
-        role="tab"
-        aria-selected={activeTab === "Closed"}
-        aria-controls="jobs-panel"
-        onClick={() => onTabChange("Closed")}
-        className={`px-3.5 py-1.5 rounded-[10px] text-sm font-medium transition-colors ${
-          activeTab === "Closed"
-            ? "bg-[#3A3A40] text-white"
-            : "text-[#A1A1AA] hover:text-white hover:bg-white/[0.04]"
-        }`}
-      >
-        Closed
-        <span className="ml-1.5 text-xs opacity-70">({closedCount})</span>
-      </button>
+      {STATUS_TABS.map((tab) => (
+        <button
+          key={tab}
+          role="tab"
+          aria-selected={activeTab === tab}
+          aria-controls="jobs-panel"
+          onClick={() => onTabChange(tab)}
+          className={`px-3.5 py-1.5 rounded-[10px] text-sm font-medium transition-colors ${
+            activeTab === tab
+              ? "bg-[#3A3A40] text-white"
+              : "text-[#A1A1AA] hover:text-white hover:bg-white/[0.04]"
+          }`}
+        >
+          {tab}
+        </button>
+      ))}
     </div>
   );
 }
@@ -314,8 +251,70 @@ function SearchInput({ value, onChange, ariaLabel }) {
   );
 }
 
-/* 8. JobRow — Desktop table row */
-function JobRow({ job, onView, onDelete }) {
+/* 8. StatusActionDropdown — admin status management */
+function StatusActionDropdown({ currentStatus, onChangeStatus, disabled }) {
+  const [open, setOpen] = useState(false);
+  const statusOptions = ["active", "closed", "draft", "paused", "flagged"];
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        disabled={disabled}
+        aria-label="Change job status"
+        className="w-8 h-8 flex items-center justify-center rounded-[8px] text-[#71717A] hover:text-white hover:bg-[#3A3A40] transition-colors disabled:opacity-40 disabled:pointer-events-none"
+      >
+        <MoreVertical size={16} />
+      </button>
+      {open && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setOpen(false)}
+            aria-hidden="true"
+          />
+          <div
+            className="absolute right-0 top-full mt-1 z-50 bg-[#1B1B1F] border border-white/[0.08] rounded-[10px] shadow-[0_4px_24px_rgba(0,0,0,0.5)] py-1 min-w-[140px]"
+            role="menu"
+            aria-label="Status options"
+          >
+            <p className="text-[#71717A] text-[10px] uppercase tracking-wider font-semibold px-3 pt-2 pb-1">
+              Set Status
+            </p>
+            {statusOptions.map((s) => (
+              <button
+                key={s}
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  if (s !== currentStatus) onChangeStatus(s);
+                }}
+                className={`w-full text-left px-3 py-2 text-sm capitalize transition-colors flex items-center gap-2 ${
+                  s === currentStatus
+                    ? "text-[#3B82F6] bg-[#3B82F6]/10"
+                    : "text-[#A1A1AA] hover:text-white hover:bg-white/[0.04]"
+                }`}
+              >
+                {s === "active" && <CheckCircle2 size={14} />}
+                {s === "closed" && <XCircle size={14} />}
+                {s === "draft" && <FileEdit size={14} />}
+                {s === "paused" && <Clock size={14} />}
+                {s === "flagged" && <AlertTriangle size={14} />}
+                {s}
+                {s === currentStatus && (
+                  <span className="ml-auto text-[10px] opacity-60">current</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* 9. JobRow — Desktop table row */
+function JobRow({ job, onView, onStatusChange }) {
   return (
     <tr className="border-b border-white/[0.04] hover:bg-[#222228] transition-colors group">
       {/* Title (initials + title + ID) */}
@@ -354,21 +353,18 @@ function JobRow({ job, onView, onDelete }) {
           >
             <Eye size={16} />
           </button>
-          <button
-            onClick={() => onDelete(job)}
-            aria-label={`Delete ${job.title}`}
-            className="w-8 h-8 flex items-center justify-center rounded-[8px] text-[#71717A] hover:text-red-400 hover:bg-red-500/10 transition-colors"
-          >
-            <Trash2 size={16} />
-          </button>
+          <StatusActionDropdown
+            currentStatus={job.status}
+            onChangeStatus={(newStatus) => onStatusChange(job.id, newStatus)}
+          />
         </div>
       </td>
     </tr>
   );
 }
 
-/* 9. JobCard — Mobile card fallback */
-function JobCard({ job, onView, onDelete }) {
+/* 10. JobCard — Mobile card fallback */
+function JobCard({ job, onView, onStatusChange }) {
   return (
     <div className="bg-[#1B1B1F] border border-white/[0.05] rounded-[14px] shadow-[0_2px_8px_rgba(0,0,0,0.18)] p-4 flex flex-col gap-3">
       {/* Top: icon + title + actions */}
@@ -390,13 +386,10 @@ function JobCard({ job, onView, onDelete }) {
           >
             <Eye size={16} />
           </button>
-          <button
-            onClick={() => onDelete(job)}
-            aria-label={`Delete ${job.title}`}
-            className="w-8 h-8 flex items-center justify-center rounded-[8px] text-[#71717A] hover:text-red-400 hover:bg-red-500/10 transition-colors"
-          >
-            <Trash2 size={16} />
-          </button>
+          <StatusActionDropdown
+            currentStatus={job.status}
+            onChangeStatus={(newStatus) => onStatusChange(job.id, newStatus)}
+          />
         </div>
       </div>
       {/* Meta row */}
@@ -415,7 +408,7 @@ function JobCard({ job, onView, onDelete }) {
   );
 }
 
-/* 10. Pagination */
+/* 11. Pagination */
 function Pagination({ currentPage, totalPages, onPageChange }) {
   if (totalPages <= 1) return null;
 
@@ -472,69 +465,6 @@ function Pagination({ currentPage, totalPages, onPageChange }) {
   );
 }
 
-/* 11. DeleteModal */
-function DeleteModal({ job, onConfirm, onCancel }) {
-  if (!job) return null;
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="delete-modal-title"
-      aria-describedby="delete-modal-desc"
-    >
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onCancel}
-        aria-hidden="true"
-      />
-      {/* Card */}
-      <div className="relative bg-[#1B1B1F] border border-white/[0.05] rounded-[14px] shadow-[0_2px_8px_rgba(0,0,0,0.18)] p-6 max-w-md w-full mx-4">
-        {/* Close icon */}
-        <button
-          onClick={onCancel}
-          aria-label="Close dialog"
-          className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-[8px] text-[#71717A] hover:text-white hover:bg-[#3A3A40] transition-colors"
-        >
-          <X size={16} />
-        </button>
-        {/* Icon */}
-        <div className="w-12 h-12 rounded-[12px] bg-red-500/10 flex items-center justify-center mb-4">
-          <Trash2 size={22} className="text-red-400" />
-        </div>
-        <h3 id="delete-modal-title" className="text-white text-lg font-semibold">
-          Delete Job
-        </h3>
-        <p id="delete-modal-desc" className="text-[#A1A1AA] text-sm mt-2 leading-relaxed">
-          Are you sure you want to delete{" "}
-          <span className="text-white font-medium">{job.title}</span> at{" "}
-          <span className="text-white font-medium">{job.company}</span>? This action cannot be
-          undone and all associated data will be permanently removed.
-        </p>
-        {/* Buttons */}
-        <div className="flex items-center justify-end gap-3 mt-6">
-          <button
-            onClick={onCancel}
-            aria-label="Cancel deletion"
-            className="px-4 py-2 rounded-[10px] text-sm font-medium text-[#A1A1AA] bg-[#3A3A40] hover:bg-[#4A4A52] transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => onConfirm(job)}
-            aria-label={`Confirm delete ${job.title}`}
-            className="px-4 py-2 rounded-[10px] text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors"
-          >
-            Delete
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* 12. EmptyState */
 function EmptyState() {
   return (
@@ -550,57 +480,132 @@ function EmptyState() {
   );
 }
 
+/* 13. LoadingSpinner */
+function LoadingSpinner() {
+  return (
+    <div
+      className="flex flex-col items-center justify-center py-20 text-center"
+      role="status"
+      aria-label="Loading jobs"
+    >
+      <div className="w-10 h-10 border-2 border-[#3B82F6] border-t-transparent rounded-full animate-spin mb-4" />
+      <p className="text-[#A1A1AA] text-sm">Loading jobs&hellip;</p>
+    </div>
+  );
+}
+
 /* ═══════════════════════ MAIN PAGE ═══════════════════════ */
 
 function AdminJobsPage() {
-  /* ── Auth loading ── */
+  const router = useRouter();
   const { data: session, isPending: authLoading } = useSession();
 
   /* ── State ── */
-  const [activeTab, setActiveTab] = useState("Active");
+  const [activeTab, setActiveTab] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Statuses");
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
   const [currentPage, setCurrentPage] = useState(1);
-  const [deleteModal, setDeleteModal] = useState({ open: false, job: null });
 
-  /* ── Counts ── */
-  const activeCount = MOCK_JOBS.filter((j) => j.status === "Active").length;
-  const closedCount = MOCK_JOBS.filter((j) => j.status === "Closed").length;
+  // Data state
+  const [jobs, setJobs] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [categories, setCategories] = useState(["All Categories"]);
+  const [stats, setStats] = useState({ totalJobs: 0, activeJobs: 0, totalApplications: 0 });
 
-  /* ── Filtered & paginated jobs ── */
-  const filteredJobs = useMemo(() => {
-    return MOCK_JOBS.filter((job) => {
-      /* Tab filter */
-      if (activeTab === "Active" && job.status === "Closed") return false;
-      if (activeTab === "Closed" && job.status !== "Closed") return false;
+  // Loading state
+  const [jobsLoading, setJobsLoading] = useState(true);
+  const [statusChanging, setStatusChanging] = useState(null); // job id being changed
 
-      /* Status dropdown */
-      if (statusFilter !== "All Statuses" && job.status !== statusFilter) return false;
+  /* ── Determine effective status for API ── */
+  const getEffectiveStatus = useCallback(() => {
+    // Tab takes priority over dropdown
+    if (activeTab !== "All") return activeTab.toLowerCase();
+    // Dropdown "All Statuses" → no filter
+    if (statusFilter === "All Statuses") return undefined;
+    return statusFilter.toLowerCase();
+  }, [activeTab, statusFilter]);
 
-      /* Category dropdown */
-      if (categoryFilter !== "All Categories" && job.category !== categoryFilter) return false;
+  /* ── Fetch jobs ── */
+  const fetchJobs = useCallback(async () => {
+    setJobsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("all", "true");
+      params.set("page", String(currentPage));
+      params.set("perPage", String(ITEMS_PER_PAGE));
 
-      /* Search */
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        if (
-          !job.title.toLowerCase().includes(q) &&
-          !job.company.toLowerCase().includes(q)
-        ) {
-          return false;
-        }
+      const effectiveStatus = getEffectiveStatus();
+      if (effectiveStatus) {
+        params.set("status", effectiveStatus);
       }
 
-      return true;
-    });
-  }, [activeTab, searchQuery, statusFilter, categoryFilter]);
+      if (searchQuery.trim()) {
+        params.set("search", searchQuery.trim());
+      }
 
-  const totalPages = Math.max(1, Math.ceil(filteredJobs.length / ITEMS_PER_PAGE));
-  const paginatedJobs = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredJobs.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredJobs, currentPage]);
+      if (categoryFilter !== "All Categories") {
+        params.set("jobCategory", categoryFilter);
+      }
+
+      const data = await protectedClientFetch(`/api/jobs?${params.toString()}`);
+      if (data) {
+        const mappedJobs = (data.jobs || []).map(mapJobFromApi);
+        setJobs(mappedJobs);
+        setTotal(data.total ?? mappedJobs.length);
+      }
+    } catch (err) {
+      console.error("Failed to fetch jobs:", err);
+    } finally {
+      setJobsLoading(false);
+    }
+  }, [currentPage, getEffectiveStatus, searchQuery, categoryFilter]);
+
+  /* ── Fetch categories ── */
+  const fetchCategories = useCallback(async () => {
+    try {
+      const data = await clientFetch("/api/categories");
+      if (Array.isArray(data) && data.length > 0) {
+        // Support both {name: "..."} and plain string
+        const catNames = data.map((c) => (typeof c === "string" ? c : c.name || c));
+        setCategories(["All Categories", ...catNames]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch categories:", err);
+    }
+  }, []);
+
+  /* ── Fetch admin stats ── */
+  const fetchStats = useCallback(async () => {
+    try {
+      const data = await protectedClientFetch("/admin/stats");
+      if (data) {
+        setStats({
+          totalJobs: data.totalJobs ?? total,
+          activeJobs: data.activeJobs ?? 0,
+          totalApplications: data.totalApplications ?? 0,
+        });
+      }
+    } catch (err) {
+      // Stats endpoint might not exist — compute from what we have
+      console.warn("Admin stats endpoint unavailable, using defaults");
+    }
+  }, [total]);
+
+  /* ── Effects ── */
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  useEffect(() => {
+    fetchJobs();
+  }, [fetchJobs]);
+
+  useEffect(() => {
+    if (total > 0) {
+      fetchStats();
+    }
+  }, [total, fetchStats]);
 
   /* Reset page on filter change */
   useEffect(() => {
@@ -608,24 +613,32 @@ function AdminJobsPage() {
   }, [activeTab, searchQuery, statusFilter, categoryFilter]);
 
   /* ── Handlers ── */
-  const handleView = (job) => {
-    // Navigate to job detail — placeholder
-  };
+  const handleView = useCallback(
+    (job) => {
+      router.push(`/jobs/${job.id}`);
+    },
+    [router]
+  );
 
-  const handleDeleteClick = (job) => {
-    setDeleteModal({ open: true, job });
-  };
+  const handleStatusChange = useCallback(
+    async (jobId, newStatus) => {
+      setStatusChanging(jobId);
+      try {
+        await clientMutation(`/api/jobs/${jobId}/admin-status`, { status: newStatus }, "PATCH");
+        await fetchJobs();
+      } catch (err) {
+        console.error("Failed to change status:", err);
+      } finally {
+        setStatusChanging(null);
+      }
+    },
+    [fetchJobs]
+  );
 
-  const handleDeleteConfirm = (job) => {
-    // Delete logic placeholder
-    setDeleteModal({ open: false, job: null });
-  };
+  /* ── Computed ── */
+  const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
 
-  const handleDeleteCancel = () => {
-    setDeleteModal({ open: false, job: null });
-  };
-
-  /* ── Loading state ── */
+  /* ── Auth loading ── */
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]" role="status" aria-label="Loading">
@@ -663,7 +676,7 @@ function AdminJobsPage() {
           label="Status"
           value={statusFilter}
           onChange={(val) => setStatusFilter(val)}
-          options={["All Statuses", "Active", "Closed", "Draft"]}
+          options={STATUS_DROPDOWN_OPTIONS}
           ariaLabel="Filter by status"
         />
 
@@ -672,16 +685,14 @@ function AdminJobsPage() {
           label="Category"
           value={categoryFilter}
           onChange={(val) => setCategoryFilter(val)}
-          options={CATEGORIES}
+          options={categories}
           ariaLabel="Filter by category"
         />
 
-        {/* Toggle group */}
-        <ToggleGroup
+        {/* Tab group */}
+        <StatusTabGroup
           activeTab={activeTab}
           onTabChange={(tab) => setActiveTab(tab)}
-          activeCount={activeCount}
-          closedCount={closedCount}
         />
       </section>
 
@@ -692,133 +703,130 @@ function AdminJobsPage() {
         aria-label="Jobs list"
         className="bg-[#1B1B1F] border border-white/[0.05] rounded-[14px] shadow-[0_2px_8px_rgba(0,0,0,0.18)] overflow-hidden"
       >
-        {/* Desktop table */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-sm" role="table">
-            <thead>
-              <tr className="border-b border-white/[0.05]">
-                <th
-                  scope="col"
-                  className="text-left text-[#71717A] font-medium py-3 px-5 text-xs uppercase tracking-wider"
-                >
-                  Title
-                </th>
-                <th
-                  scope="col"
-                  className="text-left text-[#71717A] font-medium py-3 px-5 text-xs uppercase tracking-wider"
-                >
-                  Company
-                </th>
-                <th
-                  scope="col"
-                  className="text-left text-[#71717A] font-medium py-3 px-5 text-xs uppercase tracking-wider"
-                >
-                  Category
-                </th>
-                <th
-                  scope="col"
-                  className="text-left text-[#71717A] font-medium py-3 px-5 text-xs uppercase tracking-wider"
-                >
-                  Type
-                </th>
-                <th
-                  scope="col"
-                  className="text-left text-[#71717A] font-medium py-3 px-5 text-xs uppercase tracking-wider"
-                >
-                  Date Posted
-                </th>
-                <th
-                  scope="col"
-                  className="text-left text-[#71717A] font-medium py-3 px-5 text-xs uppercase tracking-wider"
-                >
-                  Status
-                </th>
-                <th
-                  scope="col"
-                  className="text-right text-[#71717A] font-medium py-3 px-5 text-xs uppercase tracking-wider"
-                >
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedJobs.length === 0 ? (
-                <tr>
-                  <td colSpan={7}>
-                    <EmptyState />
-                  </td>
-                </tr>
+        {jobsLoading ? (
+          <LoadingSpinner />
+        ) : (
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm" role="table">
+                <thead>
+                  <tr className="border-b border-white/[0.05]">
+                    <th
+                      scope="col"
+                      className="text-left text-[#71717A] font-medium py-3 px-5 text-xs uppercase tracking-wider"
+                    >
+                      Title
+                    </th>
+                    <th
+                      scope="col"
+                      className="text-left text-[#71717A] font-medium py-3 px-5 text-xs uppercase tracking-wider"
+                    >
+                      Company
+                    </th>
+                    <th
+                      scope="col"
+                      className="text-left text-[#71717A] font-medium py-3 px-5 text-xs uppercase tracking-wider"
+                    >
+                      Category
+                    </th>
+                    <th
+                      scope="col"
+                      className="text-left text-[#71717A] font-medium py-3 px-5 text-xs uppercase tracking-wider"
+                    >
+                      Type
+                    </th>
+                    <th
+                      scope="col"
+                      className="text-left text-[#71717A] font-medium py-3 px-5 text-xs uppercase tracking-wider"
+                    >
+                      Date Posted
+                    </th>
+                    <th
+                      scope="col"
+                      className="text-left text-[#71717A] font-medium py-3 px-5 text-xs uppercase tracking-wider"
+                    >
+                      Status
+                    </th>
+                    <th
+                      scope="col"
+                      className="text-right text-[#71717A] font-medium py-3 px-5 text-xs uppercase tracking-wider"
+                    >
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {jobs.length === 0 ? (
+                    <tr>
+                      <td colSpan={7}>
+                        <EmptyState />
+                      </td>
+                    </tr>
+                  ) : (
+                    jobs.map((job) => (
+                      <JobRow
+                        key={job.id}
+                        job={job}
+                        onView={handleView}
+                        onStatusChange={handleStatusChange}
+                      />
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden p-3 flex flex-col gap-3">
+              {jobs.length === 0 ? (
+                <EmptyState />
               ) : (
-                paginatedJobs.map((job) => (
-                  <JobRow
+                jobs.map((job) => (
+                  <JobCard
                     key={job.id}
                     job={job}
                     onView={handleView}
-                    onDelete={handleDeleteClick}
+                    onStatusChange={handleStatusChange}
                   />
                 ))
               )}
-            </tbody>
-          </table>
-        </div>
+            </div>
 
-        {/* Mobile cards */}
-        <div className="md:hidden p-3 flex flex-col gap-3">
-          {paginatedJobs.length === 0 ? (
-            <EmptyState />
-          ) : (
-            paginatedJobs.map((job) => (
-              <JobCard
-                key={job.id}
-                job={job}
-                onView={handleView}
-                onDelete={handleDeleteClick}
-              />
-            ))
-          )}
-        </div>
-
-        {/* Pagination */}
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-        />
+            {/* Pagination */}
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </>
+        )}
       </section>
 
       {/* ──── 4. Bottom KPI Cards ──── */}
       <section aria-label="Job performance metrics" className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <KpiStatCard
-          icon={TrendingUp}
-          label="Engagement Rate"
-          value="82.4%"
-          change="+5.2%"
-          changeType="up"
+          icon={BarChart3}
+          label="Total Jobs"
+          value={stats.totalJobs || total}
+          change={activeTab === "All" ? "All" : `${activeTab}`}
+          changeType="neutral"
         />
         <KpiStatCard
-          icon={Clock}
-          label="Avg Time to Fill"
-          value="14 Days"
-          change="Stable"
-          changeType="neutral"
+          icon={TrendingUp}
+          label="Active Jobs"
+          value={stats.activeJobs || "—"}
+          change="Live"
+          changeType="up"
         />
         <KpiStatCard
           icon={Users}
           label="Total Applications"
-          value="8,219"
-          change="-2.1%"
-          changeType="down"
+          value={stats.totalApplications || "—"}
+          change="Platform-wide"
+          changeType="neutral"
         />
       </section>
-
-      {/* ──── 5. Delete Modal ──── */}
-      {deleteModal.open && (
-        <DeleteModal
-          job={deleteModal.job}
-          onConfirm={handleDeleteConfirm}
-          onCancel={handleDeleteCancel}
-        />
-      )}
     </main>
   );
 }

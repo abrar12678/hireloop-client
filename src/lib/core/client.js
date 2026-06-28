@@ -28,8 +28,14 @@ async function handleResponse(res) {
     return null;
   }
   if (!res.ok) {
-    console.error(`[clientFetch] ${res.status} ${res.statusText} for ${res.url}`);
-    return [];
+    // Try to read the error body for debugging
+    let errorDetail = "";
+    try {
+      const errBody = await res.json();
+      errorDetail = errBody?.error || errBody?.message || JSON.stringify(errBody);
+    } catch { /* ignore parse failure */ }
+    console.warn(`[clientFetch] ${res.status} for ${res.url} — ${errorDetail || res.statusText}`);
+    return null;
   }
   const contentType = res.headers.get("content-type");
   if (!contentType || !contentType.includes("application/json")) {

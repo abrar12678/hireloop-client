@@ -9,6 +9,7 @@ import {
   Search,
   Bookmark,
   FileText,
+  MessageSquare,
   CreditCard,
   Settings,
   Building2,
@@ -16,6 +17,9 @@ import {
   Users,
   LogOut,
   User,
+  Bell,
+  Flag,
+  Tag,
   Menu,
   X,
 } from "lucide-react";
@@ -26,6 +30,8 @@ const seekerNavLinks = [
   { icon: Search, href: "/dashboard/seeker/jobs", label: "Jobs" },
   { icon: Bookmark, href: "/dashboard/seeker/saved-jobs", label: "Saved Jobs" },
   { icon: FileText, href: "/dashboard/seeker/applications", label: "Applications" },
+  { icon: Bell, href: "/dashboard/seeker/notifications", label: "Notifications" },
+  { icon: MessageSquare, href: "/dashboard/seeker/messages", label: "Messages" },
   { icon: CreditCard, href: "/dashboard/seeker/billing", label: "Billing" },
   { icon: Settings, href: "/dashboard/seeker/settings", label: "Settings" },
 ];
@@ -35,6 +41,9 @@ const recruiterNavLinks = [
   { icon: Building2, href: "/dashboard/recruiter/company", label: "My Company" },
   { icon: Briefcase, href: "/dashboard/recruiter/jobs", label: "Manage Jobs" },
   { icon: FileText, href: "/dashboard/recruiter/applications", label: "Applications" },
+  { icon: Users, href: "/dashboard/recruiter/candidates", label: "Candidates" },
+  { icon: Bell, href: "/dashboard/recruiter/notifications", label: "Notifications" },
+  { icon: MessageSquare, href: "/dashboard/recruiter/messages", label: "Messages" },
   { icon: Settings, href: "/dashboard/recruiter/settings", label: "Settings" },
 ];
 
@@ -44,6 +53,9 @@ const adminNavLinks = [
   { icon: Building2, href: "/dashboard/admin/companies", label: "Companies" },
   { icon: Briefcase, href: "/dashboard/admin/jobs", label: "Jobs" },
   { icon: CreditCard, href: "/dashboard/admin/payments", label: "Payments" },
+  { icon: Flag, href: "/dashboard/admin/reports", label: "Reports" },
+  { icon: Tag, href: "/dashboard/admin/categories", label: "Categories" },
+  { icon: Bell, href: "/dashboard/admin/notifications", label: "Notifications" },
   { icon: Settings, href: "/dashboard/admin/settings", label: "Settings" },
 ];
 

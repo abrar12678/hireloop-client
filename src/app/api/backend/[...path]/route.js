@@ -50,7 +50,7 @@ async function proxyRequest(request, { params }, method) {
     forwardHeaders["Authorization"] = `Bearer ${token}`;
   }
 
-  // 4. Copy content-type for methods with body
+  // 4. Copy content-type and other headers for methods with body
   const contentType = request.headers.get("content-type");
   if (contentType && method !== "GET" && method !== "HEAD") {
     forwardHeaders["Content-Type"] = contentType;

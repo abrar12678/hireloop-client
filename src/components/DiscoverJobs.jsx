@@ -3,7 +3,6 @@
 import { useRef, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MapPin, Briefcase, DollarSign, ArrowUpRight } from "lucide-react";
-import Link from "next/link";
 import { motion, useInView } from "motion/react";
 
 const cardVariants = {
@@ -167,8 +166,12 @@ export default function DiscoverJobs() {
                     : "Negotiable";
 
               return (
-                <motion.div
+                <a
                   key={jobId}
+                  href={`/jobs/${jobId}`}
+                  className="block"
+                >
+                <motion.div
                   custom={i}
                   variants={cardVariants}
                   initial="hidden"
@@ -179,11 +182,11 @@ export default function DiscoverJobs() {
                     borderColor: "rgba(99,102,241,0.3)",
                     transition: { type: "tween", duration: 0.2 },
                   }}
-                  className="group bg-[#151516] rounded-xl border border-zinc-800/50 p-6 cursor-default relative overflow-hidden"
+                  className="group bg-[#151516] rounded-xl border border-zinc-800/50 p-6 cursor-pointer relative overflow-hidden h-full"
                 >
                   <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-px bg-gradient-to-r from-transparent via-[#6366F1]/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-                  <Link href={`/jobs/${jobId}`} className="block">
+                  <div className="block">
                     <div className="flex items-start gap-3 mb-3">
                       <CompanyAvatar
                         name={job.companyName}
@@ -223,24 +226,16 @@ export default function DiscoverJobs() {
                         {salaryRange}
                       </span>
                     </div>
-                  </Link>
+                  </div>
 
                   <div className="h-px bg-white/[0.08] mb-4 group-hover:bg-white/12 transition-colors duration-300" />
 
-                  <Link
-                    href={`/jobs/${jobId}`}
-                    className="flex items-center gap-1.5 text-white text-[14px] font-medium"
-                  >
-                    Apply Now
-                    <motion.span
-                      className="inline-flex"
-                      whileHover={{ x: 3, y: -3 }}
-                      transition={{ type: "tween", duration: 0.2 }}
-                    >
-                      <ArrowUpRight className="w-4 h-4 text-white group-hover:text-[#6366F1] transition-colors duration-300" />
-                    </motion.span>
-                  </Link>
+                  <span className="flex items-center gap-1.5 text-white text-[14px] font-medium">
+                    View Details
+                    <ArrowUpRight className="w-4 h-4 text-white group-hover:text-[#6366F1] transition-colors duration-300" />
+                  </span>
                 </motion.div>
+                </a>
               );
             })}
           </div>

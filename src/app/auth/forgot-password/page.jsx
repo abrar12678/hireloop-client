@@ -29,13 +29,15 @@ const ForgotPasswordPage = () => {
     const email = formData.get("email");
 
     try {
-      const { error } = await authClient.forgetPassword({
-        email,
-        redirectTo: `${window.location.origin}/auth/reset-password`,
+      const res = await fetch("/api/backend/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
       });
+      const data = await res.json();
 
-      if (error) {
-        toast.error(error.message || "Failed to send reset email.", {
+      if (!res.ok) {
+        toast.error(data.error || "Failed to send reset email.", {
           position: "top-center",
           autoClose: 4000,
           theme: "dark",

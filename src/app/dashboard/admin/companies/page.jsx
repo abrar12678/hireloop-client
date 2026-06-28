@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Search,
   Plus,
@@ -16,82 +16,12 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  Timer,
-  Percent,
   BarChart3,
+  BadgeCheck,
+  FolderOpen,
 } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
-
-/* ------------------------------------------------------------------ */
-/*  Mock Data                                                          */
-/* ------------------------------------------------------------------ */
-
-const MOCK_COMPANIES = [
-  {
-    id: "1",
-    name: "TechFlow Inc.",
-    email: "recruiter@techflow.io",
-    industry: "Technology",
-    status: "Pending",
-    dateSubmitted: "2025-01-12",
-  },
-  {
-    id: "2",
-    name: "FinGrid",
-    email: "hiring@fingrid.com",
-    industry: "Fintech",
-    status: "Approved",
-    dateSubmitted: "2025-01-08",
-  },
-  {
-    id: "3",
-    name: "CloudApps",
-    email: "jobs@cloudapps.dev",
-    industry: "SaaS",
-    status: "Approved",
-    dateSubmitted: "2024-12-30",
-  },
-  {
-    id: "4",
-    name: "DataSync",
-    email: "careers@datasync.ai",
-    industry: "Data Analytics",
-    status: "Pending",
-    dateSubmitted: "2025-01-14",
-  },
-  {
-    id: "5",
-    name: "NeuralPath",
-    email: "talent@neuralpath.com",
-    industry: "AI/ML",
-    status: "Rejected",
-    dateSubmitted: "2025-01-05",
-  },
-  {
-    id: "6",
-    name: "DesignLab",
-    email: "hr@designlab.co",
-    industry: "Design",
-    status: "Approved",
-    dateSubmitted: "2024-12-22",
-  },
-  {
-    id: "7",
-    name: "ScaleUp",
-    email: "people@scaleup.io",
-    industry: "Startup",
-    status: "Pending",
-    dateSubmitted: "2025-01-15",
-  },
-  {
-    id: "8",
-    name: "Quantum Labs",
-    email: "recruit@quantumlabs.org",
-    industry: "Research",
-    status: "Rejected",
-    dateSubmitted: "2024-12-18",
-  },
-];
+import { protectedClientFetch, clientMutation } from "@/lib/core/client";
 
 /* ------------------------------------------------------------------ */
 /*  Helper: get initials from a company name                            */
@@ -107,6 +37,7 @@ function getInitials(name) {
 }
 
 function formatDate(dateStr) {
+  if (!dateStr) return "N/A";
   const d = new Date(dateStr);
   return d.toLocaleDateString("en-US", {
     month: "short",
@@ -116,37 +47,26 @@ function formatDate(dateStr) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  1. KpiStatCard                                                     */
+/*  1. KpiStatCard — with colorful icon                                */
 /* ------------------------------------------------------------------ */
 
-function KpiStatCard({ icon: Icon, label, value, change, trend }) {
-  const trendColor =
-    trend === "up"
-      ? "text-[#22C55E]"
-      : trend === "down"
-        ? "text-[#EF4444]"
-        : "text-[#71717A]";
-
-  const TrendIcon =
-    trend === "up" ? TrendingUp : trend === "down" ? TrendingDown : Minus;
-
+function KpiStatCard({ icon: Icon, label, value, color = "#3B82F6" }) {
   return (
     <div
-      className="bg-[#1B1B1F] border border-white/[0.05] rounded-[14px] shadow-[0_2px_8px_rgba(0,0,0,0.18)] h-[90px] flex items-center gap-4 px-5"
+      className="bg-[#1B1B1F] border border-white/[0.05] rounded-[14px] shadow-[0_2px_8px_rgba(0,0,0,0.18)] h-[90px] flex items-center gap-4 px-5 hover:-translate-y-0.5 hover:border-white/[0.08] transition-all duration-200"
       aria-label={`${label}: ${value}`}
     >
-      <div className="w-10 h-10 rounded-[10px] bg-[#3A3A40] flex items-center justify-center shrink-0">
-        <Icon size={20} className="text-[#A1A1AA]" />
+      <div
+        className="w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0"
+        style={{ backgroundColor: `${color}18` }}
+      >
+        <Icon size={20} style={{ color }} />
       </div>
       <div className="flex flex-col justify-center min-w-0">
         <span className="text-white text-xl font-semibold tracking-tight leading-none">
           {value}
         </span>
         <span className="text-[#71717A] text-xs mt-1 truncate">{label}</span>
-        <span className={`text-[11px] mt-0.5 flex items-center gap-1 ${trendColor}`}>
-          <TrendIcon size={12} />
-          {change}
-        </span>
       </div>
     </div>
   );
@@ -287,14 +207,41 @@ function SearchInput({ value, onChange }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  10. ActionBadge                                                    */
+/*  8. IndustryFilter                                                  */
 /* ------------------------------------------------------------------ */
 
-function ActionBadge({ status }) {
+function IndustryFilter({ value, onChange, industries }) {
+  if (industries.length === 0) return null;
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label="Filter by industry"
+      className="appearance-none bg-[#0E0E11] border border-white/[0.08] rounded-[10px] text-white text-sm px-4 py-2 pr-9 outline-none cursor-pointer focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11] transition-colors"
+      style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23A1A1AA' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 6l3.5 4 3.5-4z'/%3E%3C/svg%3E")`,
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "right 10px center",
+      }}
+    >
+      <option value="">All Industries</option>
+      {industries.map((ind) => (
+        <option key={ind} value={ind}>{ind}</option>
+      ))}
+    </select>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  9. ActionBadge                                                    */
+/* ------------------------------------------------------------------ */
+
+function ActionBadge({ status, onApprove, onReject }) {
   return (
     <div className="flex items-center gap-2">
       {(status === "Pending" || status === "Rejected") && (
         <button
+          onClick={onApprove}
           className="inline-flex items-center gap-1 text-[12px] font-medium px-3 py-1.5 rounded-[10px] border border-[#22C55E]/40 bg-[#22C55E]/10 text-[#22C55E] hover:bg-[#22C55E]/20 transition-colors focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11]"
           aria-label="Approve company"
         >
@@ -304,6 +251,7 @@ function ActionBadge({ status }) {
       )}
       {(status === "Pending" || status === "Approved") && (
         <button
+          onClick={onReject}
           className="inline-flex items-center gap-1 text-[12px] font-medium px-3 py-1.5 rounded-[10px] border border-[#EF4444]/40 bg-[#EF4444]/10 text-[#EF4444] hover:bg-[#EF4444]/20 transition-colors focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11]"
           aria-label="Reject company"
         >
@@ -322,19 +270,24 @@ function ActionBadge({ status }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  8. CompanyRow  (desktop table row)                                 */
+/*  10. CompanyRow  (desktop table row)                                */
 /* ------------------------------------------------------------------ */
 
-function CompanyRow({ company }) {
+function CompanyRow({ company, onVerifyToggle, onApprove, onReject }) {
   return (
     <tr className="border-b border-white/[0.05] hover:bg-[#222228] transition-colors">
       {/* Company */}
       <td className="py-3.5 px-5">
         <div className="flex items-center gap-3">
           <CompanyAvatar name={company.name} />
-          <span className="text-white text-sm font-medium">
-            {company.name}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-white text-sm font-medium">
+              {company.name}
+            </span>
+            {company.verified && (
+              <BadgeCheck size={18} className="w-5 h-5 text-[#3B82F6] inline-block shrink-0" />
+            )}
+          </div>
         </div>
       </td>
       {/* Recruiter Email */}
@@ -351,21 +304,35 @@ function CompanyRow({ company }) {
       </td>
       {/* Date Submitted */}
       <td className="py-3.5 px-5 text-[#71717A] text-sm whitespace-nowrap">
-        {formatDate(company.dateSubmitted)}
+        {formatDate(company.dateSubmitted || company.createdAt)}
       </td>
       {/* Actions */}
       <td className="py-3.5 px-5">
-        <ActionBadge status={company.status} />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onVerifyToggle(company)}
+            className={`inline-flex items-center gap-1 text-[12px] font-medium px-3 py-1.5 rounded-[10px] border transition-colors focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11] cursor-pointer ${
+              company.verified
+                ? "border-[#3B82F6]/40 bg-[#3B82F6]/10 text-[#3B82F6] hover:bg-[#3B82F6]/20"
+                : "border-white/[0.08] bg-white/[0.04] text-[#A1A1AA] hover:bg-white/[0.08] hover:text-white"
+            }`}
+            aria-label={company.verified ? "Unverify company" : "Verify company"}
+          >
+            <BadgeCheck size={13} />
+            {company.verified ? "Verified" : "Verify"}
+          </button>
+          <ActionBadge status={company.status} onApprove={() => onApprove(company)} onReject={() => onReject(company)} />
+        </div>
       </td>
     </tr>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/*  9. CompanyCard  (mobile card fallback)                             */
+/*  11. CompanyCard  (mobile card fallback)                            */
 /* ------------------------------------------------------------------ */
 
-function CompanyCard({ company }) {
+function CompanyCard({ company, onVerifyToggle, onApprove, onReject }) {
   return (
     <div className="bg-[#1B1B1F] border border-white/[0.05] rounded-[14px] shadow-[0_2px_8px_rgba(0,0,0,0.18)] p-4 space-y-3">
       {/* Top row: avatar + name + status */}
@@ -373,7 +340,12 @@ function CompanyCard({ company }) {
         <div className="flex items-center gap-3">
           <CompanyAvatar name={company.name} />
           <div>
-            <p className="text-white text-sm font-medium">{company.name}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-white text-sm font-medium">{company.name}</p>
+              {company.verified && (
+                <BadgeCheck size={18} className="w-5 h-5 text-[#3B82F6] inline-block shrink-0" />
+              )}
+            </div>
             <p className="text-[#71717A] text-xs">{company.email}</p>
           </div>
         </div>
@@ -383,35 +355,24 @@ function CompanyCard({ company }) {
       <div className="flex items-center gap-3 flex-wrap">
         <IndustryPill industry={company.industry} />
         <span className="text-[#71717A] text-xs">
-          {formatDate(company.dateSubmitted)}
+          {formatDate(company.dateSubmitted || company.createdAt)}
         </span>
       </div>
       {/* Actions */}
-      <div className="pt-1">
-        <ActionBadge status={company.status} />
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Bottom KPI card                                                    */
-/* ------------------------------------------------------------------ */
-
-function BottomKpiCard({ icon: Icon, label, value, sub }) {
-  return (
-    <div className="bg-[#1B1B1F] border border-white/[0.05] rounded-[14px] shadow-[0_2px_8px_rgba(0,0,0,0.18)] p-5 flex items-center gap-4">
-      <div className="w-10 h-10 rounded-[10px] bg-[#3A3A40] flex items-center justify-center shrink-0">
-        <Icon size={20} className="text-[#A1A1AA]" />
-      </div>
-      <div>
-        <p className="text-white text-lg font-semibold leading-tight">
-          {value}
-        </p>
-        <p className="text-[#71717A] text-xs mt-0.5">{label}</p>
-        {sub && (
-          <p className="text-[#22C55E] text-[11px] mt-0.5">{sub}</p>
-        )}
+      <div className="pt-1 flex items-center gap-2">
+        <button
+          onClick={() => onVerifyToggle(company)}
+          className={`inline-flex items-center gap-1 text-[12px] font-medium px-3 py-1.5 rounded-[10px] border transition-colors cursor-pointer ${
+            company.verified
+              ? "border-[#3B82F6]/40 bg-[#3B82F6]/10 text-[#3B82F6] hover:bg-[#3B82F6]/20"
+              : "border-white/[0.08] bg-white/[0.04] text-[#A1A1AA] hover:bg-white/[0.08] hover:text-white"
+          }`}
+          aria-label={company.verified ? "Unverify company" : "Verify company"}
+        >
+          <BadgeCheck size={13} />
+          {company.verified ? "Verified" : "Verify"}
+        </button>
+        <ActionBadge status={company.status} onApprove={() => onApprove(company)} onReject={() => onReject(company)} />
       </div>
     </div>
   );
@@ -439,18 +400,49 @@ function LoadingSpinner() {
 /* ================================================================== */
 
 const AdminCompaniesPage = () => {
-  const { data: session, isPending } = useSession();
+  const { isPending } = useSession();
   const [activeFilter, setActiveFilter] = useState("All");
+  const [industryFilter, setIndustryFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [companies, setCompanies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const ITEMS_PER_PAGE = 10;
+
+  /* ------ Fetch companies ------ */
+  const fetchCompanies = useCallback(async () => {
+    try {
+      const data = await protectedClientFetch("/api/companies");
+      setCompanies(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Failed to fetch companies:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isPending) fetchCompanies();
+  }, [isPending, fetchCompanies]);
 
   /* ------ Derived data ------ */
+  const uniqueIndustries = useMemo(() => {
+    const set = new Set();
+    companies.forEach((c) => {
+      if (c.industry) set.add(c.industry);
+    });
+    return Array.from(set).sort();
+  }, [companies]);
 
   const filteredCompanies = useMemo(() => {
-    let list = MOCK_COMPANIES;
+    let list = companies;
 
     if (activeFilter !== "All") {
       list = list.filter((c) => c.status === activeFilter);
+    }
+
+    if (industryFilter) {
+      list = list.filter((c) => (c.industry || "").toLowerCase() === industryFilter.toLowerCase());
     }
 
     if (searchQuery.trim()) {
@@ -458,25 +450,90 @@ const AdminCompaniesPage = () => {
       list = list.filter(
         (c) =>
           c.name.toLowerCase().includes(q) ||
-          c.email.toLowerCase().includes(q) ||
-          c.industry.toLowerCase().includes(q)
+          (c.email || "").toLowerCase().includes(q) ||
+          (c.industry || "").toLowerCase().includes(q)
       );
     }
 
     return list;
-  }, [activeFilter, searchQuery]);
+  }, [activeFilter, industryFilter, searchQuery, companies]);
+
+  /* ------ Pagination ------ */
+  const totalPages = Math.max(1, Math.ceil(filteredCompanies.length / ITEMS_PER_PAGE));
+  const pageStart = (currentPage - 1) * ITEMS_PER_PAGE;
+  const pageData = filteredCompanies.slice(pageStart, pageStart + ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [currentPage, totalPages]);
 
   const counts = useMemo(() => {
-    const all = MOCK_COMPANIES.length;
-    const pending = MOCK_COMPANIES.filter((c) => c.status === "Pending").length;
-    const approved = MOCK_COMPANIES.filter((c) => c.status === "Approved").length;
-    const rejected = MOCK_COMPANIES.filter((c) => c.status === "Rejected").length;
+    const all = companies.length;
+    const pending = companies.filter((c) => c.status === "Pending").length;
+    const approved = companies.filter((c) => c.status === "Approved").length;
+    const rejected = companies.filter((c) => c.status === "Rejected").length;
     return { All: all, Pending: pending, Approved: approved, Rejected: rejected };
-  }, []);
+  }, [companies]);
+
+  /* ------ KPI values from real data ------ */
+  const monthlyRegistrations = useMemo(() => {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    return companies.filter((c) => {
+      const d = new Date(c.createdAt || c.dateSubmitted);
+      return d >= monthStart;
+    }).length;
+  }, [companies]);
+
+  const approvalRate = useMemo(() => {
+    const total = counts.All;
+    if (total === 0) return "0";
+    return ((counts.Approved / total) * 100).toFixed(0);
+  }, [counts]);
+
+  /* ------ Actions ------ */
+
+  const handleVerifyToggle = async (company) => {
+    const companyId = company._id?.$oid || company._id;
+    try {
+      await clientMutation(`/api/companies/${companyId}/verify`, { verified: !company.verified }, "PATCH");
+      setCompanies((prev) =>
+        prev.map((c) =>
+          (c._id?.$oid || c._id) === companyId
+            ? { ...c, verified: !c.verified }
+            : c
+        )
+      );
+    } catch (err) {
+      console.error("Failed to update verification:", err);
+    }
+  };
+
+  const handleApprove = async (company) => {
+    const companyId = company._id?.$oid || company._id;
+    try {
+      await clientMutation(`/api/companies/${companyId}`, { status: "Approved" }, "PATCH");
+      fetchCompanies();
+    } catch (err) {
+      console.error("Failed to approve company:", err);
+    }
+  };
+
+  const handleReject = async (company) => {
+    const companyId = company._id?.$oid || company._id;
+    try {
+      await clientMutation(`/api/companies/${companyId}`, { status: "Rejected" }, "PATCH");
+      fetchCompanies();
+    } catch (err) {
+      console.error("Failed to reject company:", err);
+    }
+  };
 
   /* ------ Loading state ------ */
 
-  if (isPending) {
+  if (isPending || loading) {
     return (
       <div className="p-6 max-w-7xl mx-auto">
         <LoadingSpinner />
@@ -517,27 +574,30 @@ const AdminCompaniesPage = () => {
       </div>
 
       {/* ============== KPI ROW ============== */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <KpiStatCard
+          icon={Building2}
+          label="Total Companies"
+          value={counts.All}
+          color="#3B82F6"
+        />
         <KpiStatCard
           icon={Clock}
           label="Pending Review"
-          value="28"
-          change="+12% vs last week"
-          trend="up"
+          value={counts.Pending}
+          color="#F59E0B"
         />
         <KpiStatCard
           icon={ShieldCheck}
           label="Approved Partners"
-          value="314"
-          change="+5% vs last week"
-          trend="up"
+          value={counts.Approved}
+          color="#22C55E"
         />
         <KpiStatCard
           icon={XCircle}
           label="Total Rejected"
-          value="45"
-          change="Stable"
-          trend="stable"
+          value={counts.Rejected}
+          color="#EF4444"
         />
       </div>
 
@@ -551,7 +611,20 @@ const AdminCompaniesPage = () => {
           }}
           counts={counts}
         />
-        <SearchInput value={searchQuery} onChange={setSearchQuery} />
+        <div className="flex items-center gap-3">
+          <IndustryFilter
+            value={industryFilter}
+            onChange={(v) => {
+              setIndustryFilter(v);
+              setCurrentPage(1);
+            }}
+            industries={uniqueIndustries}
+          />
+          <SearchInput value={searchQuery} onChange={(v) => {
+            setSearchQuery(v);
+            setCurrentPage(1);
+          }} />
+        </div>
       </div>
 
       {/* ============== COMPANIES TABLE / CARDS ============== */}
@@ -585,7 +658,7 @@ const AdminCompaniesPage = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredCompanies.length === 0 ? (
+              {pageData.length === 0 ? (
                 <tr>
                   <td
                     colSpan={6}
@@ -595,8 +668,8 @@ const AdminCompaniesPage = () => {
                   </td>
                 </tr>
               ) : (
-                filteredCompanies.map((company) => (
-                  <CompanyRow key={company.id} company={company} />
+                pageData.map((company) => (
+                  <CompanyRow key={company._id?.$oid || company._id} company={company} onVerifyToggle={handleVerifyToggle} onApprove={handleApprove} onReject={handleReject} />
                 ))
               )}
             </tbody>
@@ -605,76 +678,87 @@ const AdminCompaniesPage = () => {
 
         {/* Mobile card layout (hidden on desktop) */}
         <div className="md:hidden p-4 space-y-3">
-          {filteredCompanies.length === 0 ? (
+          {pageData.length === 0 ? (
             <p className="py-12 text-center text-[#71717A] text-sm">
               No companies found matching your criteria.
             </p>
           ) : (
-            filteredCompanies.map((company) => (
-              <CompanyCard key={company.id} company={company} />
+            pageData.map((company) => (
+              <CompanyCard key={company._id?.$oid || company._id} company={company} onVerifyToggle={handleVerifyToggle} onApprove={handleApprove} onReject={handleReject} />
             ))
           )}
         </div>
 
         {/* Pagination footer */}
-        <div className="flex items-center justify-between px-5 py-4 border-t border-white/[0.05]">
-          <p className="text-xs text-[#71717A]">
-            Showing{" "}
-            <span className="text-[#A1A1AA]">
-              {filteredCompanies.length}
-            </span>{" "}
-            of{" "}
-            <span className="text-[#A1A1AA]">
-              {MOCK_COMPANIES.length}
-            </span>{" "}
-            companies
-          </p>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="w-8 h-8 flex items-center justify-center rounded-[10px] text-[#A1A1AA] hover:bg-[#222228] hover:text-white disabled:opacity-30 transition-colors focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11]"
-              aria-label="Previous page"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#3A3A40] text-white text-sm font-medium"
-              aria-current="page"
-              aria-label="Page 1"
-            >
-              1
-            </button>
-            <button
-              onClick={() => setCurrentPage((p) => p + 1)}
-              className="w-8 h-8 flex items-center justify-center rounded-[10px] text-[#A1A1AA] hover:bg-[#222228] hover:text-white disabled:opacity-30 transition-colors focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11]"
-              aria-label="Next page"
-            >
-              <ChevronRight size={16} />
-            </button>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-5 py-4 border-t border-white/[0.05]">
+            <p className="text-xs text-[#71717A]">
+              Showing{" "}
+              <span className="text-[#A1A1AA]">
+                {pageData.length}
+              </span>{" "}
+              of{" "}
+              <span className="text-[#A1A1AA]">
+                {filteredCompanies.length}
+              </span>{" "}
+              companies
+            </p>
+            <nav className="flex items-center gap-1" aria-label="Pagination">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="w-8 h-8 flex items-center justify-center rounded-[10px] text-[#A1A1AA] hover:bg-[#222228] hover:text-white disabled:opacity-30 transition-colors focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11]"
+                aria-label="Previous page"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setCurrentPage(p)}
+                  className={`w-8 h-8 flex items-center justify-center rounded-[10px] text-sm font-medium transition-colors ${
+                    p === currentPage
+                      ? "bg-white text-black"
+                      : "text-[#A1A1AA] hover:bg-[#222228] hover:text-white"
+                  }`}
+                  aria-label={`Page ${p}`}
+                  aria-current={p === currentPage ? "page" : undefined}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage((p) => p + 1)}
+                disabled={currentPage === totalPages}
+                className="w-8 h-8 flex items-center justify-center rounded-[10px] text-[#A1A1AA] hover:bg-[#222228] hover:text-white disabled:opacity-30 transition-colors focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] focus:ring-offset-2 focus:ring-offset-[#0E0E11]"
+                aria-label="Next page"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </nav>
           </div>
-        </div>
+        )}
       </div>
 
       {/* ============== BOTTOM KPI ROW ============== */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <BottomKpiCard
-          icon={Timer}
-          label="Average Review Time"
-          value="2.4 days"
-          sub="−0.3 days vs last month"
+        <KpiStatCard
+          icon={FolderOpen}
+          label="Total Industries"
+          value={uniqueIndustries.length}
+          color="#8B5CF6"
         />
-        <BottomKpiCard
-          icon={Percent}
-          label="Approval Rate"
-          value="87%"
-          sub="+2% vs last month"
-        />
-        <BottomKpiCard
+        <KpiStatCard
           icon={BarChart3}
-          label="Monthly Registrations"
-          value="+18%"
-          sub="Trending upward"
+          label="Approval Rate"
+          value={`${approvalRate}%`}
+          color="#3B82F6"
+        />
+        <KpiStatCard
+          icon={TrendingUp}
+          label="This Month Registrations"
+          value={monthlyRegistrations}
+          color="#22C55E"
         />
       </div>
     </div>

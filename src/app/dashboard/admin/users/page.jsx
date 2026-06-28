@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Users,
   UserPlus,
-  ShieldOff,
+  UserCheck,
+  UserX,
   TrendingUp,
   Search,
   Download,
@@ -13,25 +14,9 @@ import {
   UserCog,
   Ban,
   CheckCircle2,
-  UserX,
 } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
-
-/* ------------------------------------------------------------------ */
-/*  MOCK DATA                                                          */
-/* ------------------------------------------------------------------ */
-const MOCK_USERS = [
-  { id: "u1",  name: "Sarah Johnson",  email: "sarah.johnson@email.com",   role: "seeker",   status: "active",    joinDate: "2024-11-03" },
-  { id: "u2",  name: "Marcus Chen",    email: "marcus.chen@email.com",     role: "recruiter", status: "active",    joinDate: "2024-09-18" },
-  { id: "u3",  name: "Emily Davis",    email: "emily.davis@email.com",     role: "seeker",   status: "suspended", joinDate: "2024-06-22" },
-  { id: "u4",  name: "James Wilson",   email: "james.wilson@email.com",    role: "recruiter", status: "active",    joinDate: "2025-01-14" },
-  { id: "u5",  name: "Aria Patel",     email: "aria.patel@email.com",      role: "seeker",   status: "active",    joinDate: "2025-03-27" },
-  { id: "u6",  name: "Tom Anderson",   email: "tom.anderson@email.com",    role: "admin",    status: "active",    joinDate: "2023-12-01" },
-  { id: "u7",  name: "Lisa Zhang",     email: "lisa.zhang@email.com",      role: "recruiter", status: "suspended", joinDate: "2024-08-09" },
-  { id: "u8",  name: "David Kim",      email: "david.kim@email.com",       role: "seeker",   status: "active",    joinDate: "2025-04-11" },
-  { id: "u9",  name: "Nina Foster",    email: "nina.foster@email.com",     role: "seeker",   status: "active",    joinDate: "2024-10-05" },
-  { id: "u10", name: "Ryan Brooks",    email: "ryan.brooks@email.com",     role: "recruiter", status: "active",    joinDate: "2025-02-19" },
-];
+import { protectedClientFetch, clientMutation } from "@/lib/core/client";
 
 const ITEMS_PER_PAGE = 5;
 
@@ -49,29 +34,26 @@ const getInitials = (name) =>
     .toUpperCase()
     .slice(0, 2);
 
+/** Handle both raw ObjectId string and { $oid: "..." } extended JSON */
+const getUserId = (user) => (user._id?.$oid ? user._id.$oid : user._id);
+
 /* ------------------------------------------------------------------ */
-/*  1. KpiStatCard                                                     */
+/*  1. KpiStatCard — with colorful icon                                */
 /* ------------------------------------------------------------------ */
-const KpiStatCard = ({ icon: Icon, label, value, change, changeType }) => (
+const KpiStatCard = ({ icon: Icon, label, value, color = "#3B82F6" }) => (
   <div
-    className="bg-[#1B1B1F] border border-white/[0.05] rounded-[14px] h-[90px] flex items-center gap-4 px-5 shadow-[0_2px_8px_rgba(0,0,0,0.18)]"
+    className="bg-[#1B1B1F] border border-white/[0.05] rounded-[14px] h-[90px] flex items-center gap-4 px-5 shadow-[0_2px_8px_rgba(0,0,0,0.18)] hover:-translate-y-0.5 hover:border-white/[0.08] transition-all duration-200"
     aria-label={`${label}: ${value}`}
   >
-    <div className="w-11 h-11 rounded-[10px] bg-[#3A3A40] flex items-center justify-center shrink-0">
-      <Icon size={20} className="text-[#A1A1AA]" />
+    <div
+      className="w-11 h-11 rounded-[10px] flex items-center justify-center shrink-0"
+      style={{ backgroundColor: `${color}18` }}
+    >
+      <Icon size={20} style={{ color }} />
     </div>
     <div className="min-w-0">
       <p className="text-[22px] font-bold text-white leading-tight tracking-tight">{value}</p>
-      <p className="text-[12px] text-[#A1A1AA] truncate">{label}</p>
-      {change && (
-        <p
-          className={`text-[11px] mt-0.5 ${
-            changeType === "positive" ? "text-[#22C55E]" : changeType === "negative" ? "text-[#EF4444]" : "text-[#71717A]"
-          }`}
-        >
-          {change}
-        </p>
-      )}
+      <p className="text-[12px] text-[#71717A] truncate">{label}</p>
     </div>
   </div>
 );
@@ -349,58 +331,105 @@ const LoadingOverlay = () => (
 /*  MAIN PAGE                                                          */
 /* ------------------------------------------------------------------ */
 const TABS = [
-  { value: "all",      label: "All" },
-  { value: "seeker",   label: "Seekers" },
+  { value: "all",       label: "All" },
+  { value: "seeker",    label: "Seekers" },
   { value: "recruiter", label: "Recruiters" },
-  { value: "admin",    label: "Admins" },
+  { value: "admin",     label: "Admins" },
 ];
 
 const AdminUsersPage = () => {
   const { isPending } = useSession();
 
+  /* ---------- state ---------- */
   const [activeFilter, setActiveFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [users, setUsers] = useState(MOCK_USERS);
+  const [users, setUsers] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  /* ---------- filtering ---------- */
-  const filtered = useMemo(() => {
-    let result = users;
+  /* ---------- KPI counts ---------- */
+  const [kpiData, setKpiData] = useState({
+    totalUsers: 0,
+    activeUsers: 0,
+    suspendedUsers: 0,
+    newThisMonth: 0,
+  });
 
-    if (activeFilter !== "all") {
-      result = result.filter((u) => u.role === activeFilter);
+  /* ---------- debounce search (400ms) ---------- */
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  /* ---------- fetch paginated user list ---------- */
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams({
+      page: String(currentPage),
+      perPage: String(ITEMS_PER_PAGE),
+      role: activeFilter,
+      search: debouncedSearch,
+    });
+    const data = await protectedClientFetch(`/api/users?${params}`);
+    if (data) {
+      setUsers(data.users || []);
+      setTotal(data.total || 0);
+    } else {
+      setUsers([]);
+      setTotal(0);
     }
+    setLoading(false);
+  }, [currentPage, activeFilter, debouncedSearch]);
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
-      );
-    }
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
-    return result;
-  }, [users, activeFilter, searchQuery]);
+  /* ---------- fetch KPI counts (lightweight: limit=1, only total field) ---------- */
+  const fetchKpiCounts = useCallback(async () => {
+    const [allRes, activeRes, suspendedRes] = await Promise.all([
+      protectedClientFetch("/api/users?page=1&perPage=1&role=all&search="),
+      protectedClientFetch("/api/users?page=1&perPage=1&role=all&search=&status=active"),
+      protectedClientFetch("/api/users?page=1&perPage=1&role=all&search=&status=suspended"),
+    ]);
+    const totalUsers = allRes?.total || 0;
+    const activeUsers = activeRes?.total || 0;
+    const suspendedUsers = suspendedRes?.total || 0;
+    setKpiData({
+      totalUsers,
+      activeUsers: activeUsers > 0 ? activeUsers : totalUsers,
+      suspendedUsers,
+      newThisMonth: "—",
+    });
+  }, []);
 
-  /* ---------- pagination ---------- */
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-  const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  useEffect(() => {
+    fetchKpiCounts();
+  }, [fetchKpiCounts]);
 
-  /* ---------- actions (local mock) ---------- */
-  const handleRoleChange = (userId, newRole) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
-    );
+  /* ---------- role change (API) ---------- */
+  const handleRoleChange = async (userId, newRole) => {
+    await clientMutation(`/api/users/${userId}/role`, { role: newRole }, "PATCH");
+    fetchUsers();
+    fetchKpiCounts();
   };
 
-  const handleStatusToggle = (userId) => {
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === userId ? { ...u, status: u.status === "active" ? "suspended" : "active" } : u
-      )
-    );
+  /* ---------- status toggle (API) ---------- */
+  const handleStatusToggle = async (userId) => {
+    const user = users.find((u) => getUserId(u) === userId);
+    if (!user) return;
+    const newStatus = user.status === "active" ? "suspended" : "active";
+    await clientMutation(`/api/users/${userId}/status`, { status: newStatus }, "PATCH");
+    fetchUsers();
+    fetchKpiCounts();
   };
 
-  /* ---------- filter resets ---------- */
+  /* ---------- filter / search handlers ---------- */
   const handleTabChange = (tab) => {
     setActiveFilter(tab);
     setCurrentPage(1);
@@ -408,15 +437,44 @@ const AdminUsersPage = () => {
 
   const handleSearchChange = (e) => {
     setSearchQuery(e.target.value);
-    setCurrentPage(1);
   };
 
-  /* ---------- KPI data ---------- */
+  /* ---------- normalize API users for sub-components ---------- */
+  const displayUsers = users.map((u) => ({
+    ...u,
+    id: getUserId(u),
+    joinDate: u.createdAt,
+  }));
+
+  /* ---------- server-side pagination totals ---------- */
+  const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
+
+  /* ---------- KPI cards (derived from real data) ---------- */
   const kpis = [
-    { icon: Users,      label: "Total Users",        value: "24,512",  change: "+12% vs last month", changeType: "positive" },
-    { icon: TrendingUp,  label: "Recruiter Growth",    value: "3,847",   change: "High demand",        changeType: "positive" },
-    { icon: ShieldOff,   label: "Suspended Accounts",  value: "196",     change: "0.8% of total",       changeType: "neutral" },
-    { icon: UserPlus,    label: "New Signups",         value: "148",     change: "Steady",              changeType: "neutral" },
+    {
+      icon: Users,
+      label: "Total Users",
+      value: kpiData.totalUsers.toLocaleString(),
+      color: "#3B82F6",
+    },
+    {
+      icon: UserCheck,
+      label: "Active Users",
+      value: kpiData.activeUsers.toLocaleString(),
+      color: "#22C55E",
+    },
+    {
+      icon: UserX,
+      label: "Suspended Users",
+      value: kpiData.suspendedUsers.toLocaleString(),
+      color: "#EF4444",
+    },
+    {
+      icon: UserPlus,
+      label: "New This Month",
+      value: typeof kpiData.newThisMonth === "number" ? kpiData.newThisMonth.toLocaleString() : kpiData.newThisMonth,
+      color: "#A855F7",
+    },
   ];
 
   /* ---------- session loading ---------- */
@@ -450,10 +508,10 @@ const AdminUsersPage = () => {
             value={activeFilter}
             onChange={(e) => handleTabChange(e.target.value)}
             options={[
-              { value: "all",      label: "All Roles" },
-              { value: "seeker",   label: "Seekers" },
+              { value: "all",       label: "All Roles" },
+              { value: "seeker",    label: "Seekers" },
               { value: "recruiter", label: "Recruiters" },
-              { value: "admin",    label: "Admins" },
+              { value: "admin",     label: "Admins" },
             ]}
           />
           <button
@@ -539,14 +597,20 @@ const AdminUsersPage = () => {
               </tr>
             </thead>
             <tbody>
-              {paginated.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={6}>
+                    <LoadingOverlay />
+                  </td>
+                </tr>
+              ) : displayUsers.length === 0 ? (
                 <tr>
                   <td colSpan={6}>
                     <EmptyState />
                   </td>
                 </tr>
               ) : (
-                paginated.map((user) => (
+                displayUsers.map((user) => (
                   <UserRow
                     key={user.id}
                     user={user}
@@ -561,10 +625,12 @@ const AdminUsersPage = () => {
 
         {/* --- Mobile cards (hidden on md+) --- */}
         <div className="md:hidden p-3 space-y-3">
-          {paginated.length === 0 ? (
+          {loading ? (
+            <LoadingOverlay />
+          ) : displayUsers.length === 0 ? (
             <EmptyState />
           ) : (
-            paginated.map((user) => (
+            displayUsers.map((user) => (
               <UserCard
                 key={user.id}
                 user={user}
@@ -579,8 +645,8 @@ const AdminUsersPage = () => {
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
-          totalItems={filtered.length}
-          paginatedItems={paginated.length}
+          totalItems={total}
+          paginatedItems={displayUsers.length}
           onPageChange={setCurrentPage}
         />
       </div>

@@ -46,6 +46,7 @@ const STATUS_STYLES = {
   "under review": { label: "Under Review", bg: "bg-[#F59E0B]/15", text: "text-[#F59E0B]", border: "border-[#F59E0B]/30" },
   review: { label: "Under Review", bg: "bg-[#F59E0B]/15", text: "text-[#F59E0B]", border: "border-[#F59E0B]/30" },
   shortlisted: { label: "Shortlisted", bg: "bg-[#22C55E]/15", text: "text-[#22C55E]", border: "border-[#22C55E]/30" },
+  offered: { label: "Offered", bg: "bg-[#818CF8]/15", text: "text-[#818CF8]", border: "border-[#818CF8]/30" },
   accepted: { label: "Accepted", bg: "bg-[#3B82F6]/15", text: "text-[#3B82F6]", border: "border-[#3B82F6]/30" },
   hired: { label: "Hired", bg: "bg-[#6B63FF]/15", text: "text-[#6B63FF]", border: "border-[#6B63FF]/30" },
   rejected: { label: "Rejected", bg: "bg-[#EF4444]/15", text: "text-[#EF4444]", border: "border-[#EF4444]/30" },
@@ -315,25 +316,26 @@ export default function DashboardJobDetail() {
               </span>
             ) : cooldown ? (
               <div className="text-center">
-                <button disabled className="h-10 px-5 rounded-[10px] bg-[#3A3A40] text-[#71717A] text-[14px] font-medium cursor-not-allowed">
-                  Cooldown Active
+                <button disabled className="h-10 px-5 rounded-[10px] bg-[#EF4444]/10 text-[#EF4444] text-[14px] font-medium border border-[#EF4444]/25 cursor-not-allowed">
+                  <X size={14} className="inline mr-1.5 -mt-0.5" /> Rejected
                 </button>
                 <CooldownTimer endTime={cooldown} />
               </div>
+            ) : applicationStatus ? (
+              <button
+                disabled
+                className={`h-10 px-5 rounded-[10px] text-[14px] font-medium flex items-center gap-2 cursor-not-allowed border ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}
+              >
+                {statusStyle.label}
+              </button>
             ) : (
               <button
                 onClick={handleApply}
-                disabled={applying || !canApply}
-                className={`h-10 px-5 rounded-[10px] text-[14px] font-medium flex items-center gap-2 transition-all duration-200 cursor-pointer ${
-                  canApply
-                    ? "bg-white text-black hover:bg-zinc-200"
-                    : "bg-[#3A3A40] text-[#71717A] cursor-not-allowed"
-                }`}
+                disabled={applying}
+                className="h-10 px-5 rounded-[10px] bg-white text-black text-[14px] font-medium flex items-center gap-2 hover:bg-zinc-200 transition-all duration-200 cursor-pointer"
               >
                 {applying ? (
                   <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                ) : applicationStatus ? (
-                  "Already Applied"
                 ) : (
                   "Apply Now"
                 )}
@@ -469,15 +471,70 @@ export default function DashboardJobDetail() {
           {/* Application Status Card */}
           {applicationStatus && (
             <div className="bg-[#1B1B1F] border border-white/[0.05] rounded-[14px] p-6 shadow-[0_2px_8px_rgba(0,0,0,0.18)]">
-              <h3 className="text-[16px] font-semibold text-white mb-3">Your Application</h3>
-              <div className="flex items-center gap-3 mb-3">
-                <span className={`inline-flex items-center h-[28px] px-3 rounded-full text-[13px] font-medium border ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}>
-                  {statusStyle.label}
-                </span>
+              <h3 className="text-[16px] font-semibold text-white mb-4">Your Application</h3>
+              {/* Status Pipeline */}
+              <div className="space-y-2.5 mb-4">
+                {[
+                  { key: "applied", label: "Applied" },
+                  { key: "under review", label: "Under Review" },
+                  { key: "shortlisted", label: "Shortlisted" },
+                  { key: "offered", label: "Offered" },
+                  { key: "accepted", label: "Accepted" },
+                  { key: "hired", label: "Hired" },
+                ].map((step, idx) => {
+                  const steps = ["applied", "under review", "shortlisted", "offered", "accepted", "hired"];
+                  const currentIdx = steps.indexOf((applicationStatus || "").toLowerCase());
+                  const stepIdx = steps.indexOf(step.key);
+                  const isActive = step.key === (applicationStatus || "").toLowerCase();
+                  const isRejected = (applicationStatus || "").toLowerCase() === "rejected";
+                  const isCompleted = !isRejected && stepIdx < currentIdx;
+                  const isCurrent = !isRejected && stepIdx === currentIdx;
+
+                  return (
+                    <div key={step.key} className="flex items-center gap-3">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold transition-all duration-200 ${
+                        isRejected
+                          ? stepIdx === 0
+                            ? "bg-white/[0.06] border border-white/[0.08] text-[#A1A1AA]"
+                            : "bg-zinc-800/50 border border-zinc-800 text-zinc-700"
+                          : isCompleted
+                            ? "bg-[#22C55E]/15 border border-[#22C55E]/30 text-[#22C55E]"
+                            : isCurrent
+                              ? `${STATUS_STYLES[step.key]?.bg || ""} border ${STATUS_STYLES[step.key]?.border || ""} ${STATUS_STYLES[step.key]?.text || ""}`
+                              : "bg-zinc-800/50 border border-zinc-800 text-zinc-700"
+                      }`}>
+                        {isCompleted ? <Check size={12} /> : idx + 1}
+                      </div>
+                      <span className={`text-[13px] transition-colors duration-200 ${
+                        isRejected && stepIdx > 0
+                          ? "text-zinc-700 line-through"
+                          : isCompleted
+                            ? "text-[#22C55E]"
+                            : isCurrent
+                              ? "text-white font-medium"
+                              : "text-zinc-600"
+                      }`}>
+                        {step.label}
+                      </span>
+                      {isCurrent && !isRejected && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ml-auto ${STATUS_STYLES[step.key]?.bg || ""} ${STATUS_STYLES[step.key]?.text || ""}`}>
+                          Current
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
+              {/* Rejected state */}
+              {(applicationStatus || "").toLowerCase() === "rejected" && (
+                <div className="flex items-center gap-2 text-[12px] text-[#EF4444] bg-[#EF4444]/10 rounded-lg px-3 py-2 border border-[#EF4444]/20">
+                  <X size={14} />
+                  <span>This application was rejected.</span>
+                </div>
+              )}
               {cooldown && (
-                <div className="flex items-center gap-2 text-[12px] text-[#F59E0B]">
-                  <Clock size={14} />
+                <div className="flex items-center gap-2 text-[12px] text-[#F59E0B] mt-2">
+                  <AlertTriangle size={13} />
                   <span>You can reapply after the cooldown period.</span>
                 </div>
               )}

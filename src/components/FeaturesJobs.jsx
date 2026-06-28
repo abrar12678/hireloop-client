@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Magnifier from "@gravity-ui/icons/Magnifier";
 import ChartColumn from "@gravity-ui/icons/ChartColumn";
 import Briefcase from "@gravity-ui/icons/Briefcase";
@@ -79,6 +79,12 @@ const cardVariants = {
 export default function Testimonials() {
   const sectionRef = useRef(null);
   const isInView = useInView(sectionRef, { once: true, margin: "-80px" });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 800);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <section
@@ -123,7 +129,21 @@ export default function Testimonials() {
 
         {/* Features Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-x-4 lg:gap-y-6">
-          {FEATURES.map((feature, i) => {
+          {loading
+            ? Array.from({ length: 8 }).map((_, i) => (
+                <div
+                  key={`skel-${i}`}
+                  className="rounded-xl p-5 border border-transparent flex flex-row gap-4 items-start"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-neutral-800 animate-pulse flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="h-[18px] w-3/4 bg-neutral-800 rounded animate-pulse mb-2" />
+                    <div className="h-[14px] w-full bg-neutral-800 rounded animate-pulse mb-1" />
+                    <div className="h-[14px] w-5/6 bg-neutral-800 rounded animate-pulse" />
+                  </div>
+                </div>
+              ))
+            : FEATURES.map((feature, i) => {
             const Icon = feature.icon;
             return (
               <motion.div

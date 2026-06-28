@@ -1,12 +1,12 @@
 import React from "react";
 import { getJobById } from "@/lib/api/jobs";
+import { getUserSession } from "@/lib/core/session";
 import {
   MapPin,
   Briefcase,
   CircleDollar,
   Calendar,
   ArrowUpRight,
-  ShieldCheck,
   Heart,
   CirclePlay,
   Server,
@@ -16,11 +16,16 @@ import {
   Persons,
   Globe,
 } from "@gravity-ui/icons";
+import { BadgeCheck } from "lucide-react";
 import Link from "next/link";
+import ReportJobButton from "@/components/ReportJobButton";
 
 const Page = async ({ params }) => {
   const { id } = await params;
-  const job = await getJobById(id);
+  const [job, session] = await Promise.all([
+    getJobById(id),
+    getUserSession().catch(() => null),
+  ]);
 
   // Guard clause in case API fails or returns null
   if (!job) {
@@ -146,15 +151,17 @@ const Page = async ({ params }) => {
               <span className="text-lg font-medium text-zinc-300">
                 {job.companyName}
               </span>
-              <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold px-3 py-1 rounded-full">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Verified Employer
-              </span>
+              {job.companyVerified && (
+                <BadgeCheck className="w-5 h-5 text-[#3B82F6] inline-block" title="Verified Company" />
+              )}
+            </div>
+            <div className="mt-2">
+              <ReportJobButton jobId={id} />
             </div>
           </div>
 
           <Link
-            href={`/auth/signIn?redirect=/dashboard/seeker/jobs/${id}`}
+            href={session ? `/jobs/${id}/apply` : `/auth/signIn?redirect=${encodeURIComponent(`/dashboard/seeker/jobs/${id}`)}`}
             className="inline-flex items-center gap-2 bg-[#6366F1] hover:bg-[#5558E6] text-white font-semibold px-8 py-3.5 rounded-xl transition-colors shadow-lg shadow-[#6366F1]/20 flex-shrink-0"
           >
             Apply Now

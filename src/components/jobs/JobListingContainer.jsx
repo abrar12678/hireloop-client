@@ -19,15 +19,26 @@ const SORT_OPTIONS = [
   { id: "alpha", label: "A\u2013Z" },
 ];
 
+const SALARY_RANGES = [
+  { id: "all", min: "", max: "" },
+  { id: "0-30k", min: "0", max: "30000" },
+  { id: "30-60k", min: "30000", max: "60000" },
+  { id: "60-100k", min: "60000", max: "100000" },
+  { id: "100-150k", min: "100000", max: "150000" },
+  { id: "150k+", min: "150000", max: "" },
+];
+
 const ITEMS_PER_PAGE = 6;
 
-export default function JobListingContainer({ jobs, total, basePath = "/jobs", savedJobIds, onSavedChange }) {
-  const [searchInput, setSearchInput] = useState("");
-  const [locationInput, setLocationInput] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [debouncedLocation, setDebouncedLocation] = useState("");
+export default function JobListingContainer({ jobs, total, basePath = "/jobs", savedJobIds, onSavedChange, filters = {} }) {
+  const [searchInput, setSearchInput] = useState(filters.search || "");
+  const [locationInput, setLocationInput] = useState(filters.location || "");
+  const [debouncedSearch, setDebouncedSearch] = useState(filters.search || "");
+  const [debouncedLocation, setDebouncedLocation] = useState(filters.location || "");
   const [selectedType, setSelectedType] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedExperience, setSelectedExperience] = useState("all");
+  const [selectedSalaryRange, setSelectedSalaryRange] = useState("all");
   const [isRemoteOnly, setIsRemoteOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState("recent");
@@ -116,6 +127,30 @@ export default function JobListingContainer({ jobs, total, basePath = "/jobs", s
       );
     }
 
+    // Experience level filter
+    if (selectedExperience !== "all") {
+      result = result.filter(
+        (job) => job.experienceLevel?.toLowerCase() === selectedExperience.toLowerCase(),
+      );
+    }
+
+    // Salary range filter
+    if (selectedSalaryRange !== "all") {
+      const range = SALARY_RANGES.find((r) => r.id === selectedSalaryRange);
+      if (range && range.min) {
+        result = result.filter((job) => {
+          const jobMax = parseInt(job.maxSalary) || parseInt(job.minSalary) || 0;
+          return jobMax >= parseInt(range.min);
+        });
+      }
+      if (range && range.max) {
+        result = result.filter((job) => {
+          const jobMin = parseInt(job.minSalary) || 0;
+          return jobMin > 0 && jobMin <= parseInt(range.max);
+        });
+      }
+    }
+
     // Sorting
     if (sortBy === "salary-desc") {
       result.sort(
@@ -142,6 +177,8 @@ export default function JobListingContainer({ jobs, total, basePath = "/jobs", s
     isRemoteOnly,
     selectedType,
     selectedCategory,
+    selectedExperience,
+    selectedSalaryRange,
     sortBy,
   ]);
 
@@ -299,6 +336,10 @@ export default function JobListingContainer({ jobs, total, basePath = "/jobs", s
               setIsRemoteOnly(val);
               setPage(1);
             }}
+            selectedExperience={selectedExperience}
+            setSelectedExperience={(val) => { setSelectedExperience(val); setPage(1); }}
+            selectedSalaryRange={selectedSalaryRange}
+            setSelectedSalaryRange={(val) => { setSelectedSalaryRange(val); setPage(1); }}
           />
         </div>
 
@@ -328,6 +369,10 @@ export default function JobListingContainer({ jobs, total, basePath = "/jobs", s
                   setIsRemoteOnly(val);
                   setPage(1);
                 }}
+                selectedExperience={selectedExperience}
+                setSelectedExperience={(val) => { setSelectedExperience(val); setPage(1); }}
+                selectedSalaryRange={selectedSalaryRange}
+                setSelectedSalaryRange={(val) => { setSelectedSalaryRange(val); setPage(1); }}
               />
             </motion.div>
           )}

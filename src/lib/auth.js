@@ -13,7 +13,6 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
-  // Allow requests from both localhost AND Vercel
   trustedOrigins: [
     "http://localhost:3000",
     "https://hireloop-client-self.vercel.app",
@@ -21,14 +20,16 @@ export const auth = betterAuth({
   user: {
     additionalFields: {
       role: {
+        type: "string",
         defaultValue: "seeker",
+        input: true,
       },
       plan: {
+        type: "string",
         defaultValue: "seeker_free",
-      }
+        input: true,
+      },
     },
   },
-  plugins: [
-    admin()
-  ]
+  plugins: [admin()],
 });

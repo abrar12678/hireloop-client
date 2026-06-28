@@ -1,15 +1,17 @@
 "use client";
 
+import Link from "next/link";
+
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import { protectedClientFetch, clientMutation, clientDelete } from "@/lib/core/client";
-import { Search, Mail, Bell, X, Check, Bookmark, FileText, Briefcase, CreditCard, Settings, LayoutDashboard, Sparkles } from "lucide-react";
+import { Search, Mail, Bell, X, Check, Bookmark, FileText, Briefcase, CreditCard, Settings, LayoutDashboard, Sparkles, Building2, Users } from "lucide-react";
 
 /* ═══════════════════════════════════════════════════
    NAVIGATION SEARCH CONFIG
    ═══════════════════════════════════════════════════ */
-const SEARCHABLE_PAGES = [
+const SEEKER_SEARCH_PAGES = [
   { keywords: ["dashboard", "home", "overview"], href: "/dashboard/seeker", label: "Dashboard", icon: LayoutDashboard },
   { keywords: ["job", "jobs", "search", "browse", "find", "work", "position", "career", "opportunity"], href: "/dashboard/seeker/jobs", label: "Jobs", icon: Briefcase },
   { keywords: ["saved", "bookmark", "bookmarked", "favorite"], href: "/dashboard/seeker/saved-jobs", label: "Saved Jobs", icon: Bookmark },
@@ -17,6 +19,21 @@ const SEARCHABLE_PAGES = [
   { keywords: ["billing", "payment", "subscription", "plan", "pricing", "invoice", "upgrade"], href: "/dashboard/seeker/billing", label: "Billing", icon: CreditCard },
   { keywords: ["setting", "settings", "profile", "account", "edit", "update", "preference"], href: "/dashboard/seeker/settings", label: "Settings", icon: Settings },
 ];
+
+const RECRUITER_SEARCH_PAGES = [
+  { keywords: ["dashboard", "home", "overview"], href: "/dashboard/recruiter", label: "Dashboard", icon: LayoutDashboard },
+  { keywords: ["company", "profile", "brand", "logo"], href: "/dashboard/recruiter/company", label: "My Company", icon: Building2 },
+  { keywords: ["job", "jobs", "manage", "posting", "create", "post", "position"], href: "/dashboard/recruiter/jobs", label: "Manage Jobs", icon: Briefcase },
+  { keywords: ["application", "applications", "applicant", "candidate", "review", "status"], href: "/dashboard/recruiter/applications", label: "Applications", icon: FileText },
+  { keywords: ["billing", "payment", "subscription", "plan", "pricing", "invoice", "upgrade"], href: "/dashboard/recruiter/billing", label: "Billing", icon: CreditCard },
+  { keywords: ["setting", "settings", "profile", "account", "edit", "update", "preference"], href: "/dashboard/recruiter/settings", label: "Settings", icon: Settings },
+];
+
+const SEARCHABLE_PAGES_MAP = {
+  seeker: SEEKER_SEARCH_PAGES,
+  recruiter: RECRUITER_SEARCH_PAGES,
+  admin: RECRUITER_SEARCH_PAGES,
+};
 
 const NOTIFICATION_ICONS = {
   welcome: Sparkles,
@@ -26,6 +43,8 @@ const NOTIFICATION_ICONS = {
   "new_job_post": Briefcase,
   "subscription": CreditCard,
   "login": Sparkles,
+  "new_applicant": Users,
+  "interview_reminder": Mail,
 };
 
 const NOTIFICATION_COLORS = {
@@ -36,6 +55,8 @@ const NOTIFICATION_COLORS = {
   "new_job_post": "#3B82F6",
   "subscription": "#22C55E",
   "login": "#6B63FF",
+  "new_applicant": "#22C55E",
+  "interview_reminder": "#F59E0B",
 };
 
 /* ═══════════════════════════════════════════════════
@@ -88,10 +109,7 @@ export function DashboardHeader() {
 
   // ─── Role-based search pages ───
   const role = user?.role || "seeker";
-  const roleSearchPages = SEARCHABLE_PAGES.map(p => ({
-    ...p,
-    href: p.href.replace("/dashboard/seeker", `/dashboard/${role}`),
-  }));
+  const roleSearchPages = SEARCHABLE_PAGES_MAP[role] || SEEKER_SEARCH_PAGES;
 
   // ─── Search Logic ───
   useEffect(() => {
@@ -177,7 +195,9 @@ export function DashboardHeader() {
           await clientMutation("/notifications", {
             type: "welcome",
             title: "Welcome back!",
-            message: `Hi ${user.name || "there"}, welcome to HireLoop! Explore jobs and build your career.`,
+            message: user.role === "recruiter"
+            ? `Hi ${user.name || "there"}, welcome to HireLoop! Manage your job postings and review applicants.`
+            : `Hi ${user.name || "there"}, welcome to HireLoop! Explore jobs and build your career.`,
           });
           sessionStorage.setItem("hireloop_welcomed", "true");
         }
@@ -289,9 +309,9 @@ export function DashboardHeader() {
       <div className="flex items-center gap-3">
         {/* Messages */}
         <button
-          onClick={() => router.push('/dashboard/seeker/applications')}
+          onClick={() => router.push(`/dashboard/${role}/messages`)}
           aria-label="Messages"
-          title="View your application messages"
+          title={role === "recruiter" ? "View applications" : "View your application messages"}
           className="relative w-10 h-10 rounded-full flex items-center justify-center text-[#A1A1AA] hover:text-white hover:bg-white/[0.04] transition-all duration-200 cursor-pointer"
         >
           <Mail size={20} aria-hidden="true" />
@@ -362,18 +382,18 @@ export function DashboardHeader() {
           )}
         </div>
 
-        {/* Avatar */}
-        <div
-          className="w-10 h-10 rounded-full bg-[#3A3A40] flex items-center justify-center text-white text-sm font-medium cursor-pointer overflow-hidden"
-          role="img"
-          aria-label={`Profile of ${user?.name || "User"}`}
+        {/* Avatar — Clickable for all roles → Settings */}
+        <Link
+          href={`/dashboard/${role}/settings`}
+          className="w-10 h-10 rounded-full bg-[#3A3A40] flex items-center justify-center text-white text-sm font-medium overflow-hidden shrink-0"
+          aria-label={`Profile of ${user?.name || "User"} — Go to settings`}
         >
           {user?.image ? (
             <img src={user.image} alt="" className="w-full h-full object-cover" />
           ) : (
             getInitials(user?.name)
           )}
-        </div>
+        </Link>
       </div>
     </header>
   );

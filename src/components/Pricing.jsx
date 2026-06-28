@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Crown, BarChart3, Zap, ArrowRight } from "lucide-react";
 import { motion, useInView } from "motion/react";
@@ -82,8 +82,14 @@ function getYearlyPrice(monthlyPriceStr) {
 export default function Pricing() {
   const router = useRouter();
   const [billingCycle, setBillingCycle] = useState("monthly");
+  const [loading, setLoading] = useState(true);
   const sectionRef = useRef(null);
   const isInView = useInView(sectionRef, { once: true, margin: "-80px" });
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 600);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <section
@@ -179,7 +185,35 @@ export default function Pricing() {
 
         {/* Pricing Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {SEEKER_PLANS.map((plan, i) => {
+          {loading
+            ? Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={`skel-${i}`}
+                  className="rounded-2xl p-8 flex flex-col h-full bg-black border border-[#F6EFE1]/20"
+                >
+                  <div className="flex justify-between items-start mb-8">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-neutral-800 animate-pulse" />
+                      <div className="h-5 w-16 bg-neutral-800 rounded animate-pulse" />
+                    </div>
+                    <div className="text-right">
+                      <div className="h-8 w-20 bg-neutral-800 rounded animate-pulse mb-1 ml-auto" />
+                      <div className="h-3 w-12 bg-neutral-800 rounded animate-pulse ml-auto" />
+                    </div>
+                  </div>
+                  <div className="h-4 w-3/4 bg-neutral-800 rounded animate-pulse mb-5" />
+                  <ul className="space-y-4 mb-10">
+                    {[1, 2, 3, 4].map((n) => (
+                      <li key={n} className="flex items-start gap-3">
+                        <div className="w-4 h-4 rounded bg-neutral-800 animate-pulse shrink-0 mt-0.5" />
+                        <div className="h-3.5 w-full bg-neutral-800 rounded animate-pulse" />
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-auto h-11 w-full rounded-xl bg-neutral-800 animate-pulse" />
+                </div>
+              ))
+            : SEEKER_PLANS.map((plan, i) => {
             const Icon = ICON_MAP[plan.icon];
             const isPopular = plan.popular;
             const isFree = plan.monthlyPrice === "$0";
@@ -248,6 +282,7 @@ export default function Pricing() {
 
                 {/* CTA Button */}
                 <button
+                  onClick={() => router.push("/plans")}
                   className={`group/btn w-full py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-all duration-200 cursor-pointer ${
                     isPopular
                       ? "bg-white text-black hover:bg-neutral-200"

@@ -12,7 +12,15 @@ export async function POST(request) {
 
     const formData = await request.formData();
     const planId = formData.get("plan_id");
+    const billingCycle = formData.get("billing_cycle") || "monthly";
     const priceId = PLAN_PRICE_ID[planId];
+
+    if (!priceId) {
+      return NextResponse.json(
+        { error: "Invalid plan selected" },
+        { status: 400 },
+      );
+    }
 
     const user = await getUserSession();
 
@@ -21,13 +29,12 @@ export async function POST(request) {
       customer_email: user?.email,
       line_items: [
         {
-          // Provide the exact Price ID (for example, price_1234) of the product you want to sell
           price: priceId,
           quantity: 1,
         },
       ],
       mode: "subscription",
-      metadata: { planId },
+      metadata: { planId, billingCycle },
       success_url: `${origin}/plans/success?session_id={CHECKOUT_SESSION_ID}`,
     });
     return NextResponse.redirect(session.url, 303);

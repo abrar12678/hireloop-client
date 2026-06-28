@@ -12,7 +12,14 @@ import {
   RefreshCw,
   Plus,
   User,
+  Briefcase,
+  MapPin,
+  DollarSign,
+  ArrowRight,
+  Sparkles,
+  CheckCircle2,
 } from "lucide-react";
+import { getRecommendedJobs } from "@/lib/api-client/jobs";
 
 /* ═══════════════════════════════════════════════════
    HELPERS
@@ -167,11 +174,13 @@ function ActivityItem({ Icon, iconBg, text, time }) {
 
 /* ─── Recent Activity Section ─── */
 function RecentActivitySection({ activities }) {
+  const router = useRouter();
   return (
     <section aria-label="Recent Activity">
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-[16px] font-semibold text-white">Recent Activity</h4>
         <button
+          onClick={() => router.push("/dashboard/seeker/notifications")}
           aria-label="View all activity"
           className="text-[14px] text-[#A1A1AA] hover:underline underline-offset-2 transition-colors duration-200"
         >
@@ -191,7 +200,68 @@ function RecentActivitySection({ activities }) {
   );
 }
 
-/* ─── Floating Action Button ─── */
+/* ─── Recommended Jobs Section ─── */
+function RecommendedJobsSection({ jobs }) {
+  const router = useRouter();
+
+  if (!jobs || jobs.length === 0) return null;
+
+  return (
+    <section aria-label="Recommended Jobs">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Sparkles size={16} className="text-[#FACC15]" aria-hidden="true" />
+          <h4 className="text-[16px] font-semibold text-white">Recommended for You</h4>
+        </div>
+        <button
+          onClick={() => router.push("/dashboard/seeker/jobs")}
+          className="text-[14px] text-[#A1A1AA] hover:text-white transition-colors duration-200 flex items-center gap-1"
+        >
+          Browse All <ArrowRight size={14} />
+        </button>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        {jobs.map((job) => {
+          const jobId = job._id?.$oid || job._id;
+          return (
+            <button
+              key={jobId}
+              onClick={() => router.push(`/dashboard/seeker/jobs/${jobId}`)}
+              className="bg-[#1B1B1F] border border-white/[0.05] rounded-[14px] p-5 text-left hover:border-white/[0.08] hover:bg-[#222228] transition-all duration-200 cursor-pointer group"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className="min-w-0">
+                  <h5 className="text-[15px] font-medium text-white group-hover:text-[#3B82F6] transition-colors truncate">
+                    {job.jobTitle}
+                  </h5>
+                  <p className="text-[13px] text-[#71717A] mt-0.5 truncate">
+                    {job.companyName || "Company"}
+                  </p>
+                </div>
+                <div className="w-9 h-9 rounded-[10px] bg-[#3A3A40] flex items-center justify-center shrink-0 ml-3">
+                  <Briefcase size={16} className="text-[#71717A]" />
+                </div>
+              </div>
+              <div className="flex items-center gap-4 text-[12px] text-[#71717A]">
+                {job.location && (
+                  <span className="flex items-center gap-1"><MapPin size={12} />{job.location}</span>
+                )}
+                {job.minSalary && (
+                  <span className="flex items-center gap-1"><DollarSign size={12} />{job.minSalary}{job.maxSalary ? ` – ${job.maxSalary}` : "+"}</span>
+                )}
+                <span className="ml-auto">{job.jobType}</span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/* ═══════════════════════════════════════════════════
+   FLOATING ACTION BUTTON
+   ═══════════════════════════════════════════════════ */
 function FloatingActionButton({ onNavigate }) {
   const [showTooltip, setShowTooltip] = useState(false);
 
@@ -203,7 +273,7 @@ function FloatingActionButton({ onNavigate }) {
           showTooltip ? "opacity-100 scale-100 translate-x-0" : "opacity-0 scale-95 translate-x-2 pointer-events-none"
         }`}
       >
-        <span className="text-[14px] font-medium">Apply for a job</span>
+        <span className="text-[14px] font-medium">Apply for a new job</span>
         <div
           className="w-3 h-3 bg-white rotate-45 absolute -right-1.5 top-1/2 -translate-y-1/2"
           style={{ clipPath: "polygon(0 0, 100% 0, 100% 100%)" }}
@@ -222,6 +292,82 @@ function FloatingActionButton({ onNavigate }) {
   );
 }
 
+/* ─── Profile Completion ─── */
+function ProfileCompletion({ profile }) {
+  const fields = [
+    { label: "Profile Photo", filled: !!profile?.image, weight: 6 },
+    { label: "Name", filled: !!profile?.name, weight: 6 },
+    { label: "Phone", filled: !!profile?.phone, weight: 5 },
+    { label: "Location", filled: !!profile?.location, weight: 5 },
+    { label: "Headline", filled: !!profile?.headline, weight: 7 },
+    { label: "Bio", filled: !!profile?.bio && profile.bio.length > 10, weight: 7 },
+    { label: "Skills", filled: !!(Array.isArray(profile?.skills) ? profile.skills.length > 0 : profile?.skills?.trim()?.length > 0), weight: 7 },
+    { label: "Experience Level", filled: !!profile?.experienceLevel, weight: 5 },
+    { label: "Job Type", filled: !!profile?.preferredJobType, weight: 5 },
+    { label: "Website", filled: !!profile?.website, weight: 3 },
+    { label: "LinkedIn", filled: !!profile?.linkedin, weight: 3 },
+    { label: "GitHub", filled: !!profile?.github, weight: 3 },
+    { label: "Resume", filled: !!profile?.resumeUrl, weight: 7 },
+    { label: "CV", filled: !!profile?.cvUrl, weight: 7 },
+    { label: "Experience", filled: Array.isArray(profile?.experience) && profile.experience.length > 0, weight: 7 },
+    { label: "Education", filled: Array.isArray(profile?.education) && profile.education.length > 0, weight: 7 },
+    { label: "Certificates", filled: Array.isArray(profile?.certificates) && profile.certificates.length > 0, weight: 7 },
+  ];
+
+  const totalWeight = fields.reduce((sum, f) => sum + f.weight, 0);
+  const filledWeight = fields.filter((f) => f.filled).reduce((sum, f) => sum + f.weight, 0);
+  const percentage = Math.round((filledWeight / totalWeight) * 100);
+
+  const getBarColor = (pct) => {
+    if (pct >= 80) return "#22C55E";
+    if (pct >= 50) return "#FACC15";
+    return "#EF4444";
+  };
+
+  const color = getBarColor(percentage);
+
+  return (
+    <div className="bg-[#1B1B1F] border border-white/[0.05] rounded-[14px] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.18)]">
+      <div className="flex items-center justify-between mb-4">
+        <h4 className="text-[16px] font-semibold text-white">Profile Completion</h4>
+        <span className="text-[24px] font-bold" style={{ color }}>{percentage}%</span>
+      </div>
+      {/* Progress Bar */}
+      <div className="w-full h-2 bg-[#3A3A40] rounded-full overflow-hidden mb-4">
+        <div
+          className="h-full rounded-full transition-all duration-700 ease-out"
+          style={{ width: `${percentage}%`, backgroundColor: color }}
+        />
+      </div>
+      {/* Field List */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {fields.map((field) => (
+          <div key={field.label} className="flex items-center gap-2 text-[13px]">
+            {field.filled ? (
+              <div className="w-4 h-4 rounded-full bg-[#22C55E]/20 flex items-center justify-center shrink-0">
+                <CheckCircle2 size={10} className="text-[#22C55E]" />
+              </div>
+            ) : (
+              <div className="w-4 h-4 rounded-full border border-white/[0.12] shrink-0" />
+            )}
+            <span className={field.filled ? "text-[#A1A1AA]" : "text-[#52525B]"}>
+              {field.label}
+            </span>
+          </div>
+        ))}
+      </div>
+      {percentage < 100 && (
+        <button
+          onClick={() => window.location.href = "/dashboard/seeker/settings"}
+          className="mt-4 w-full h-9 border border-white/[0.06] rounded-[10px] text-[13px] text-[#A1A1AA] hover:bg-[#222228] hover:text-white transition-all duration-150 text-center cursor-pointer"
+        >
+          Complete Your Profile
+        </button>
+      )}
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════
    SEEKER DASHBOARD PAGE
    ═══════════════════════════════════════════════════ */
@@ -233,6 +379,8 @@ export default function SeekerDashboard() {
   const [dataLoading, setDataLoading] = useState(true);
   const [savedJobs, setSavedJobs] = useState([]);
   const [applications, setApplications] = useState([]);
+  const [recommendedJobs, setRecommendedJobs] = useState([]);
+  const [profileData, setProfileData] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -240,13 +388,17 @@ export default function SeekerDashboard() {
     async function fetchData() {
       setDataLoading(true);
       try {
-        const [savedRes, appsRes] = await Promise.all([
+        const [savedRes, appsRes, recRes, profileRes] = await Promise.all([
           protectedClientFetch("/saved-jobs"),
           protectedClientFetch("/applications"),
+          getRecommendedJobs(),
+          fetch("/api/backend/users/me", { credentials: "include" }).then(r => r.ok ? r.json() : null),
         ]);
         if (!cancelled) {
           setSavedJobs(Array.isArray(savedRes) ? savedRes : []);
           setApplications(Array.isArray(appsRes) ? appsRes : []);
+          setRecommendedJobs(Array.isArray(recRes) ? recRes : []);
+          if (profileRes?.user) setProfileData(profileRes.user);
         }
       } catch (err) {
         console.error("Failed to fetch dashboard data:", err);
@@ -394,6 +546,12 @@ export default function SeekerDashboard() {
         <ProfileCard user={user} />
         <ApplicationStatusCard statusBars={statusBars} />
       </div>
+
+      {/* ── Profile Completion ── */}
+      <ProfileCompletion profile={profileData} />
+
+      {/* Recommended for You */}
+      <RecommendedJobsSection jobs={recommendedJobs} />
 
       {/* Recent Activity */}
       <RecentActivitySection activities={activities} />

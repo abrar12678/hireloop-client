@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "motion/react";
 import { Magnifier, ShieldCheck, ArrowRight, ChevronLeft, ChevronRight } from "@gravity-ui/icons";
+import { BadgeCheck } from "lucide-react";
 import Link from "next/link";
 
 const ITEMS_PER_PAGE = 9;
@@ -53,12 +55,14 @@ const CompanyCard = ({ company, index }) => {
               <h3 className="text-lg font-bold text-white truncate">
                 {company.name}
               </h3>
-              {company.isVerified && (
+              {company.verified ? (
+                <BadgeCheck className="w-5 h-5 text-[#3B82F6] inline-block shrink-0" />
+              ) : company.isVerified ? (
                 <span className="inline-flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full flex-shrink-0">
                   <ShieldCheck className="w-3 h-3" />
                   Verified
                 </span>
-              )}
+              ) : null}
             </div>
           </div>
         </div>
@@ -100,9 +104,11 @@ const CompanyCard = ({ company, index }) => {
 };
 
 export default function CompaniesPage() {
+  const searchParams = useSearchParams();
+  const urlSearch = searchParams.get("search") || "";
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchInput, setSearchInput] = useState("");
+  const [searchInput, setSearchInput] = useState(urlSearch);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const searchTimer = useRef(null);

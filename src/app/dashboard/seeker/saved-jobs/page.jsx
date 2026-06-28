@@ -148,7 +148,7 @@ function FilterTab({ label, active, onClick }) {
 /* ─── Sort Dropdown ─── */
 function SortDropdown({ value, onChange }) {
   const [open, setOpen] = useState(false);
-  const options = ["Recently Saved", "Salary: High to Low", "Alphabetical"];
+  const options = ["Recently Saved", "Salary: High to Low", "Salary: Low to High", "A-Z"];
 
   return (
     <div className="relative">
@@ -438,7 +438,7 @@ export default function SavedJobsPage() {
 
     /* ── Sort ── */
     const sorted = [...base];
-    if (sortBy === "Alphabetical") {
+    if (sortBy === "A-Z") {
       sorted.sort((a, b) => a.title.localeCompare(b.title));
     } else if (sortBy === "Salary: High to Low") {
       sorted.sort((a, b) => {
@@ -448,6 +448,15 @@ export default function SavedJobsPage() {
           return Math.max(...nums.map(Number));
         };
         return parseSalary(b.salary) - parseSalary(a.salary);
+      });
+    } else if (sortBy === "Salary: Low to High") {
+      sorted.sort((a, b) => {
+        const parseSalary = (s) => {
+          const nums = (s || "").match(/[\d.]+/g);
+          if (!nums) return 0;
+          return Math.max(...nums.map(Number));
+        };
+        return parseSalary(a.salary) - parseSalary(b.salary);
       });
     }
     // "Recently Saved" — default order from API (already newest first)

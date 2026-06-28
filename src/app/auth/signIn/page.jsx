@@ -53,7 +53,7 @@ const getDashboardPath = (role) => {
  */
 const isSafeRedirect = (url) => {
   if (!url || typeof url !== "string") return false;
-  return url.startsWith("/dashboard/");
+  return url.startsWith("/dashboard/") || url.startsWith("/jobs/");
 };
 
 const SignInPage = () => {
@@ -90,11 +90,24 @@ const SignInPage = () => {
         setTimeout(() => {
           if (isSafeRedirect(rawRedirect)) {
             /*
-             * Safe redirect flow (e.g., job apply from public page):
-             * 1. Replace sign-in entry in history with dashboard jobs page
-             *    so "back" from target lands on a dashboard page, NOT a public page.
-             * 2. PUSH (not replace) the actual target so it sits on top.
+             * Role-based redirect security:
+             * If the redirect targets a specific role's dashboard but the
+             * logged-in user has a DIFFERENT role, send them to their own
+             * dashboard instead. This prevents a recruiter from accessing
+             * seeker billing plans or job pages after login.
              */
+            const redirectForSeeker = rawRedirect.startsWith("/dashboard/seeker/");
+            const redirectForRecruiter = rawRedirect.startsWith("/dashboard/recruiter/");
+            const roleMismatch =
+              (redirectForSeeker && role !== "seeker") ||
+              (redirectForRecruiter && role !== "recruiter");
+
+            if (roleMismatch) {
+              window.location.replace(getDashboardPath(role));
+              return;
+            }
+
+            // Safe redirect flow (e.g., job apply / billing plans from public page):
             const fallback = getDashboardPath(role) + "/jobs";
             window.history.replaceState(null, "", fallback);
             window.location.href = rawRedirect;
@@ -313,7 +326,7 @@ const SignInPage = () => {
           <p className="text-center text-[12px] sm:text-[13px] text-[#6B7280] pb-5 sm:pb-6">
             Don&apos;t have an account?{" "}
             <Link
-              href="/auth/signUp"
+              href={`/auth/signUp${rawRedirect ? `?redirect=${encodeURIComponent(rawRedirect)}` : ""}`}
               className="font-medium text-[#5C53FE] transition-colors hover:text-[#8B5CF6] hover:underline underline-offset-2"
             >
               Create account

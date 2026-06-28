@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getJobById } from "@/lib/api/jobs";
 import { getCompanyJobs } from "@/lib/api/jobs";
 import { MapPin, Briefcase, ArrowRight, CircleDollar, Persons } from "@gravity-ui/icons";
+import { BadgeCheck } from "lucide-react";
 import { Chip, Card } from "@heroui/react";
 
 const Page = async ({ params }) => {
@@ -66,6 +67,9 @@ const Page = async ({ params }) => {
             <div className="space-y-2">
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">
                 {company.name}
+                {company.verified && (
+                  <BadgeCheck className="w-5 h-5 text-[#3B82F6] inline-block ml-2 -mt-1" />
+                )}
               </h1>
               <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-400">
                 {company.industry && (

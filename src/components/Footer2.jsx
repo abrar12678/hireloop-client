@@ -263,7 +263,7 @@ const Footer2 = () => {
             }}
           >
             <motion.button
-              onClick={() => router.push("/signUp")}
+              onClick={() => router.push("/auth/signUp")}
               className="bg-white text-black text-sm font-medium px-6 py-3.5 rounded-xl cursor-pointer"
               whileHover={{ backgroundColor: "#e5e5e5" }}
               whileTap={{ scale: 0.97 }}
@@ -400,7 +400,7 @@ const Footer2 = () => {
               ease: [0.22, 1, 0.36, 1],
             }}
           >
-            <span>Copyright 2024 — Programming Hero</span>
+            <span>Copyright 2026 — HireLoop</span>
             <div className="flex items-center gap-6">
               <a
                 href="#"

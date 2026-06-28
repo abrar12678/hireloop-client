@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "../auth";
 import { headers } from "next/headers";
 
-const SESSION_TIMEOUT_MS = 5000; // 5 seconds — fail fast instead of hanging forever
+const SESSION_TIMEOUT_MS = 10000; // 10 seconds — allow time for DB connection
 
 function withTimeout(promise, ms) {
   return Promise.race([

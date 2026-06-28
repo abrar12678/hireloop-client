@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Crown, BarChart3, Zap, ArrowRight, Briefcase, User } from "lucide-react";
 import { motion } from "motion/react";
 import {
@@ -8,6 +9,7 @@ import {
   CircleQuestion,
   ChevronDown,
 } from "@gravity-ui/icons";
+import { useSession } from "@/lib/auth-client";
 
 /* ─── Plan Data ─── */
 const SEEKER_PLANS = [
@@ -142,6 +144,9 @@ const faqs = [
 
 /* ─── Component ─── */
 const PricingPage = () => {
+  const router = useRouter();
+  const { data: session, isPending } = useSession();
+  const user = session?.user;
   const [billingTarget, setBillingTarget] = useState("seeker");
   const [billingCycle, setBillingCycle] = useState("monthly");
   const [openFaq, setOpenFaq] = useState(null);
@@ -149,6 +154,27 @@ const PricingPage = () => {
   const toggleFaq = (index) => setOpenFaq(openFaq === index ? null : index);
 
   const activePlans = billingTarget === "seeker" ? SEEKER_PLANS : RECRUITER_PLANS;
+
+  const handleChoosePlan = (planId) => {
+    if (!user) {
+      const billingPath = billingTarget === "seeker"
+        ? "/dashboard/seeker/billing/plans"
+        : "/dashboard/recruiter/billing/plans";
+      router.push(`/auth/signIn?redirect=${encodeURIComponent(billingPath)}`);
+      return;
+    }
+    // Logged in — submit to checkout
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = "/api/checkout_sessions";
+    const p = document.createElement("input");
+    p.type = "hidden"; p.name = "plan_id"; p.value = planId;
+    const c = document.createElement("input");
+    c.type = "hidden"; c.name = "billing_cycle"; c.value = billingCycle;
+    form.appendChild(p); form.appendChild(c);
+    document.body.appendChild(form);
+    form.submit();
+  };
 
   return (
     <div className="w-full min-h-screen bg-black text-white">
@@ -306,20 +332,18 @@ const PricingPage = () => {
                 </div>
 
                 {/* CTA */}
-                <form action="/api/checkout_sessions" method="POST">
-                  <input type="hidden" name="plan_id" value={plan.id} />
-                  <button
-                    type="submit"
-                    className={`group/btn w-full py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-all duration-200 cursor-pointer ${
-                      isPopular
-                        ? "bg-white text-black hover:bg-neutral-200"
-                        : "bg-[#151516] text-white hover:bg-[#1e1e1f]"
-                    }`}
-                  >
-                    Choose This Plan
-                    <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
-                  </button>
-                </form>
+                <button
+                  type="button"
+                  onClick={() => handleChoosePlan(plan.id)}
+                  className={`group/btn w-full py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-all duration-200 cursor-pointer ${
+                    isPopular
+                      ? "bg-white text-black hover:bg-neutral-200"
+                      : "bg-[#151516] text-white hover:bg-[#1e1e1f]"
+                  }`}
+                >
+                  Choose This Plan
+                  <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+                </button>
               </motion.div>
             );
           })}

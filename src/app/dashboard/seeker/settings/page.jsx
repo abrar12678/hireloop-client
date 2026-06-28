@@ -5,7 +5,7 @@ import { useSession } from "@/lib/auth-client";
 import { protectedClientFetch, clientMutation } from "@/lib/core/client";
 import {
   User, FileText, Upload, X, Save, Camera, MapPin, Globe, Phone, Briefcase,
-  AlertCircle, RefreshCw,
+  AlertCircle, RefreshCw, Plus, Pencil, Trash2, GraduationCap, Award,
 } from "lucide-react";
 import { LogoGithub, LogoLinkedin } from "@gravity-ui/icons";
 
@@ -39,6 +39,13 @@ const pickFormFields = (u) => ({
   linkedin: u?.linkedin || "",
   github: u?.github || "",
   skills: Array.isArray(u?.skills) ? u.skills.join(", ") : u?.skills || "",
+  experience: Array.isArray(u?.experience) ? u.experience : [],
+  education: Array.isArray(u?.education) ? u.education.map(e => ({
+    ...e,
+    schoolType: e.collegeName ? "college" : e.universityName ? "university" : "",
+    school: e.collegeName || e.universityName || e.school || "",
+  })) : [],
+  certificates: Array.isArray(u?.certificates) ? u.certificates : [],
 });
 
 /** Check if a value is a plain object (not array, not null) */
@@ -72,6 +79,14 @@ const settingsFetch = async (apiPath, options = {}) => {
   } catch (err) {
     return { ok: false, status: 0, body: { error: err.message } };
   }
+};
+
+/** Format a YYYY-MM date string to a readable format */
+const formatDate = (val) => {
+  if (!val) return "Present";
+  const [year, month] = val.split("-");
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${months[parseInt(month, 10) - 1]} ${year}`;
 };
 
 /* ═══════════════════════════════════════════════════
@@ -131,10 +146,6 @@ function SelectField({ id, label, value, onChange, options }) {
   );
 }
 
-
-
-
-
 function PrimaryButton({ children, onClick, type = "button", disabled = false }) {
   return (
     <button type={type} onClick={onClick} disabled={disabled} aria-label={typeof children === "string" ? children : undefined}
@@ -154,7 +165,7 @@ function ToastMessage({ message }) {
 }
 
 /* ─── File Upload Card ─── */
-function FileUploadCard({ resumeName, resumeUrl, onUpload, onRemove }) {
+function FileUploadCard({ resumeName, resumeUrl, onUpload, onRemove, title = "Resume", description = "Upload your resume to enhance your profile visibility.", accept = ".pdf,.doc,.docx" }) {
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
 
@@ -177,8 +188,8 @@ function FileUploadCard({ resumeName, resumeUrl, onUpload, onRemove }) {
 
   return (
     <Card>
-      <h3 className="text-[18px] font-medium text-white">Resume</h3>
-      <p className="text-[13px] text-[#71717A] mt-1 mb-4">Upload your resume to enhance your profile visibility.</p>
+      <h3 className="text-[18px] font-medium text-white">{title}</h3>
+      <p className="text-[13px] text-[#71717A] mt-1 mb-4">{description}</p>
       <div className="border border-dashed border-white/[0.1] rounded-[12px] p-6 bg-[#0E0E11] text-center">
         {resumeUrl ? (
           <>
@@ -189,27 +200,513 @@ function FileUploadCard({ resumeName, resumeUrl, onUpload, onRemove }) {
         ) : (
           <>
             <Upload size={32} aria-hidden="true" className="text-[#71717A] mx-auto mb-3" />
-            <p className="text-[14px] text-[#A1A1AA] font-medium">No resume uploaded</p>
-            <p className="text-[12px] text-[#71717A] mt-1">PDF, DOC, or DOCX</p>
+            <p className="text-[14px] text-[#A1A1AA] font-medium">No {title.toLowerCase()} uploaded</p>
+            <p className="text-[12px] text-[#71717A] mt-1">PDF, DOC, DOCX, JPG, PNG</p>
           </>
         )}
         <div className="flex justify-center gap-3 mt-4">
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            aria-label="Upload resume"
+            aria-label={`Upload ${title.toLowerCase()}`}
             className="h-8 px-3 bg-[#3A3A40] text-[#A1A1AA] rounded-md text-[13px] font-medium hover:bg-[#4A4A52] hover:text-white transition-all duration-150 cursor-pointer disabled:opacity-50"
           >
             {uploading ? "Uploading..." : resumeUrl ? "Replace" : "Upload"}
           </button>
           {resumeUrl && (
-            <button onClick={onRemove} aria-label="Remove resume" className="h-8 px-3 border border-[#EF4444]/40 text-[#EF4444] rounded-md text-[13px] font-medium hover:bg-[#EF4444]/10 transition-all duration-150 cursor-pointer">
+            <button onClick={onRemove} aria-label={`Remove ${title.toLowerCase()}`} className="h-8 px-3 border border-[#EF4444]/40 text-[#EF4444] rounded-md text-[13px] font-medium hover:bg-[#EF4444]/10 transition-all duration-150 cursor-pointer">
               Remove
             </button>
           )}
-          <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx" className="hidden" aria-hidden="true" tabIndex={-1} onChange={handleFileChange} />
+          <input ref={fileInputRef} type="file" accept={accept} className="hidden" aria-hidden="true" tabIndex={-1} onChange={handleFileChange} />
         </div>
       </div>
+    </Card>
+  );
+}
+
+/* ═══════════════════════════════════════════════════
+   SECTION EDITOR — Reusable for Experience, Education
+   ═══════════════════════════════════════════════════ */
+
+/** Shared input styling for inline forms */
+const formInputClass = "w-full h-9 bg-[#0E0E11] border border-white/[0.08] rounded-[8px] px-3 text-[13px] text-white placeholder:text-[#71717A] outline-none focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] transition-all duration-150 font-[family-name:var(--font-inter)]";
+
+function SectionEditor({
+  title,
+  icon: SectionIcon,
+  entries,
+  setEntries,
+  onSave,
+  fieldConfigs,
+  emptyEntry,
+  renderEntry,
+}) {
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({ ...emptyEntry });
+
+  const openAdd = () => {
+    setFormData({ ...emptyEntry });
+    setEditingIndex(null);
+    setShowForm(true);
+  };
+
+  const openEdit = (index) => {
+    setFormData({ ...entries[index] });
+    setEditingIndex(index);
+    setShowForm(true);
+  };
+
+  const handleCancel = () => {
+    setShowForm(false);
+    setEditingIndex(null);
+    setFormData({ ...emptyEntry });
+  };
+
+  const handleSave = async () => {
+    let updated;
+    if (editingIndex !== null) {
+      updated = [...entries];
+      updated[editingIndex] = { ...formData };
+    } else {
+      updated = [...entries, { ...formData }];
+    }
+    setEntries(updated);
+    setShowForm(false);
+    setEditingIndex(null);
+    if (onSave) await onSave(updated);
+  };
+
+  const handleDelete = async (index) => {
+    const updated = entries.filter((_, i) => i !== index);
+    setEntries(updated);
+    if (onSave) await onSave(updated);
+  };
+
+  const updateField = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  return (
+    <Card>
+      <div className="flex items-center gap-3 mb-6">
+        {SectionIcon && <SectionIcon size={20} className="text-[#3B82F6]" aria-hidden="true" />}
+        <h3 className="text-[18px] font-medium text-white">{title}</h3>
+      </div>
+
+      {/* Entry List */}
+      <div className="space-y-3 mb-4">
+        {entries.length === 0 && !showForm && (
+          <p className="text-[13px] text-[#71717A] text-center py-4">No entries yet. Click &quot;Add Entry&quot; to get started.</p>
+        )}
+        {entries.map((entry, index) =>
+          editingIndex === index && showForm ? (
+            /* ── Inline Edit Form ── */
+            <div key={index} className="bg-[#0E0E11] border border-[#3B82F6]/30 rounded-[12px] p-4 space-y-3">
+              {fieldConfigs.map((cfg) => {
+                if (cfg.type === "textarea") {
+                  return (
+                    <div key={cfg.field}>
+                      <label className="block text-[12px] text-[#71717A] mb-1 font-medium">{cfg.label}</label>
+                      <textarea
+                        value={formData[cfg.field] || ""}
+                        onChange={(e) => updateField(cfg.field, e.target.value)}
+                        placeholder={cfg.placeholder || ""}
+                        rows={3}
+                        className="w-full min-h-[60px] bg-[#0E0E11] border border-white/[0.08] rounded-[8px] p-2 text-[13px] text-white placeholder:text-[#71717A] outline-none focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] transition-all duration-150 resize-y font-[family-name:var(--font-inter)] leading-relaxed"
+                      />
+                    </div>
+                  );
+                }
+                if (cfg.type === "checkbox") {
+                  return (
+                    <label key={cfg.field} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData[cfg.field] || false}
+                        onChange={(e) => {
+                          updateField(cfg.field, e.target.checked);
+                          if (e.target.checked) updateField(cfg.endDate || "endDate", "");
+                        }}
+                        className="w-4 h-4 rounded border-white/[0.15] bg-[#0E0E11] text-[#3B82F6] focus:ring-[#3B82F6] focus:ring-offset-0 cursor-pointer accent-[#3B82F6]"
+                      />
+                      <span className="text-[13px] text-[#A1A1AA]">{cfg.label}</span>
+                    </label>
+                  );
+                }
+                if (cfg.type === "select") {
+                  return (
+                    <div key={cfg.field}>
+                      <label className="block text-[12px] text-[#71717A] mb-1 font-medium">{cfg.label}</label>
+                      <select
+                        value={formData[cfg.field] || ""}
+                        onChange={(e) => updateField(cfg.field, e.target.value)}
+                        className={`${formInputClass} appearance-none cursor-pointer`}
+                      >
+                        {(cfg.options || []).map((opt) => (
+                          <option key={opt.value} value={opt.value} className="bg-[#0E0E11]">{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                }
+                return (
+                  <div key={cfg.field}>
+                    <label className="block text-[12px] text-[#71717A] mb-1 font-medium">{cfg.label}</label>
+                    <input
+                      type={cfg.type || "text"}
+                      value={formData[cfg.field] || ""}
+                      onChange={(e) => updateField(cfg.field, e.target.value)}
+                      placeholder={cfg.placeholder || ""}
+                      disabled={cfg.dependsOn && formData[cfg.dependsOn]}
+                      className={`${formInputClass} ${cfg.dependsOn && formData[cfg.dependsOn] ? "opacity-40 cursor-not-allowed" : ""}`}
+                    />
+                  </div>
+                );
+              })}
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={handleSave}
+                  className="h-8 px-3 bg-white text-black rounded-[8px] text-[13px] font-medium hover:bg-zinc-200 transition-all duration-150 cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <Save size={13} /> Save
+                </button>
+                <button
+                  onClick={handleCancel}
+                  className="h-8 px-3 bg-[#3A3A40] text-[#A1A1AA] rounded-[8px] text-[13px] font-medium hover:bg-[#4A4A52] hover:text-white transition-all duration-150 cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <X size={13} /> Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* ── Display Card ── */
+            <div
+              key={index}
+              className="bg-[#0E0E11] border border-white/[0.05] rounded-[12px] p-4 flex items-start justify-between gap-4 group hover:border-white/[0.1] transition-all duration-150"
+            >
+              <div className="min-w-0 flex-1">
+                {renderEntry(entry)}
+              </div>
+              <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                <button
+                  onClick={() => openEdit(index)}
+                  aria-label="Edit entry"
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-[#71717A] hover:text-[#3B82F6] hover:bg-[#3B82F6]/10 transition-all duration-150 cursor-pointer"
+                >
+                  <Pencil size={14} />
+                </button>
+                <button
+                  onClick={() => handleDelete(index)}
+                  aria-label="Delete entry"
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-[#71717A] hover:text-[#EF4444] hover:bg-[#EF4444]/10 transition-all duration-150 cursor-pointer"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
+          )
+        )}
+      </div>
+
+      {/* Add Form (when not editing) */}
+      {showForm && editingIndex === null && (
+        <div className="bg-[#0E0E11] border border-[#3B82F6]/30 rounded-[12px] p-4 mb-4 space-y-3">
+          {fieldConfigs.map((cfg) => {
+            if (cfg.type === "textarea") {
+              return (
+                <div key={cfg.field}>
+                  <label className="block text-[12px] text-[#71717A] mb-1 font-medium">{cfg.label}</label>
+                  <textarea
+                    value={formData[cfg.field] || ""}
+                    onChange={(e) => updateField(cfg.field, e.target.value)}
+                    placeholder={cfg.placeholder || ""}
+                    rows={3}
+                    className="w-full min-h-[60px] bg-[#0E0E11] border border-white/[0.08] rounded-[8px] p-2 text-[13px] text-white placeholder:text-[#71717A] outline-none focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] transition-all duration-150 resize-y font-[family-name:var(--font-inter)] leading-relaxed"
+                  />
+                </div>
+              );
+            }
+            if (cfg.type === "checkbox") {
+              return (
+                <label key={cfg.field} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData[cfg.field] || false}
+                    onChange={(e) => {
+                      updateField(cfg.field, e.target.checked);
+                      if (e.target.checked) updateField(cfg.endDate || "endDate", "");
+                    }}
+                    className="w-4 h-4 rounded border-white/[0.15] bg-[#0E0E11] text-[#3B82F6] focus:ring-[#3B82F6] focus:ring-offset-0 cursor-pointer accent-[#3B82F6]"
+                  />
+                  <span className="text-[13px] text-[#A1A1AA]">{cfg.label}</span>
+                </label>
+              );
+            }
+            if (cfg.type === "select") {
+              return (
+                <div key={cfg.field}>
+                  <label className="block text-[12px] text-[#71717A] mb-1 font-medium">{cfg.label}</label>
+                  <select
+                    value={formData[cfg.field] || ""}
+                    onChange={(e) => updateField(cfg.field, e.target.value)}
+                    className={`${formInputClass} appearance-none cursor-pointer`}
+                  >
+                    {(cfg.options || []).map((opt) => (
+                      <option key={opt.value} value={opt.value} className="bg-[#0E0E11]">{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+              );
+            }
+            return (
+              <div key={cfg.field}>
+                <label className="block text-[12px] text-[#71717A] mb-1 font-medium">{cfg.label}</label>
+                <input
+                  type={cfg.type || "text"}
+                  value={formData[cfg.field] || ""}
+                  onChange={(e) => updateField(cfg.field, e.target.value)}
+                  placeholder={cfg.placeholder || ""}
+                  disabled={cfg.dependsOn && formData[cfg.dependsOn]}
+                  className={`${formInputClass} ${cfg.dependsOn && formData[cfg.dependsOn] ? "opacity-40 cursor-not-allowed" : ""}`}
+                />
+              </div>
+            );
+          })}
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={handleSave}
+              className="h-8 px-3 bg-white text-black rounded-[8px] text-[13px] font-medium hover:bg-zinc-200 transition-all duration-150 cursor-pointer inline-flex items-center gap-1.5"
+            >
+              <Save size={13} /> Save
+            </button>
+            <button
+              onClick={handleCancel}
+              className="h-8 px-3 bg-[#3A3A40] text-[#A1A1AA] rounded-[8px] text-[13px] font-medium hover:bg-[#4A4A52] hover:text-white transition-all duration-150 cursor-pointer inline-flex items-center gap-1.5"
+            >
+              <X size={13} /> Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Add Button */}
+      {!showForm && (
+        <button
+          onClick={openAdd}
+          className="w-full h-10 border border-dashed border-white/[0.1] rounded-[10px] text-[13px] text-[#71717A] font-medium hover:text-[#3B82F6] hover:border-[#3B82F6]/30 hover:bg-[#3B82F6]/5 transition-all duration-150 cursor-pointer inline-flex items-center justify-center gap-2"
+        >
+          <Plus size={15} /> Add Entry
+        </button>
+      )}
+    </Card>
+  );
+}
+
+/* ═══════════════════════════════════════════════════
+   CERTIFICATE EDITOR — Custom editor with file upload
+   ═══════════════════════════════════════════════════ */
+function CertificateEditor({ entries, setEntries, onSave }) {
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({ name: "", achievingCause: "", description: "", fileUrl: "", fileName: "" });
+  const [localFile, setLocalFile] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const emptyEntry = { name: "", achievingCause: "", description: "", fileUrl: "", fileName: "" };
+
+  const openAdd = () => {
+    setFormData({ ...emptyEntry });
+    setLocalFile(null);
+    setEditingIndex(null);
+    setShowForm(true);
+  };
+
+  const openEdit = (index) => {
+    const entry = entries[index];
+    setFormData({ name: entry.name || "", achievingCause: entry.achievingCause || "", description: entry.description || "", fileUrl: entry.fileUrl || "", fileName: entry.fileName || "" });
+    setLocalFile(null);
+    setEditingIndex(index);
+    setShowForm(true);
+  };
+
+  const handleCancel = () => {
+    setShowForm(false);
+    setEditingIndex(null);
+    setFormData({ ...emptyEntry });
+    setLocalFile(null);
+  };
+
+  const readFileAsDataUrl = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleSave = async () => {
+    let fileUrl = formData.fileUrl;
+    let fileName = formData.fileName;
+    if (localFile) {
+      fileUrl = await readFileAsDataUrl(localFile);
+      fileName = localFile.name;
+    }
+    const entry = { name: formData.name, achievingCause: formData.achievingCause, description: formData.description, fileUrl, fileName };
+    let updated;
+    if (editingIndex !== null) {
+      updated = [...entries];
+      updated[editingIndex] = entry;
+    } else {
+      updated = [...entries, entry];
+    }
+    setEntries(updated);
+    setShowForm(false);
+    setEditingIndex(null);
+    setLocalFile(null);
+    setFormData({ ...emptyEntry });
+    if (onSave) await onSave(updated);
+  };
+
+  const handleDelete = async (index) => {
+    const updated = entries.filter((_, i) => i !== index);
+    setEntries(updated);
+    if (onSave) await onSave(updated);
+  };
+
+  const updateField = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLocalFile(file);
+    setFormData((prev) => ({ ...prev, fileName: file.name }));
+  };
+
+  const renderForm = () => (
+    <div className="bg-[#0E0E11] border border-[#3B82F6]/30 rounded-[12px] p-4 mb-4 space-y-3">
+      <div>
+        <label className="block text-[12px] text-[#71717A] mb-1 font-medium">Certificate Name</label>
+        <input
+          type="text" value={formData.name || ""}
+          onChange={(e) => updateField("name", e.target.value)}
+          placeholder="e.g. AWS Solutions Architect"
+          className={formInputClass}
+        />
+      </div>
+      <div>
+        <label className="block text-[12px] text-[#71717A] mb-1 font-medium">Achieving Cause</label>
+        <input
+          type="text" value={formData.achievingCause || ""}
+          onChange={(e) => updateField("achievingCause", e.target.value)}
+          placeholder="e.g. Passed the certification exam"
+          className={formInputClass}
+        />
+      </div>
+      <div>
+        <label className="block text-[12px] text-[#71717A] mb-1 font-medium">Description</label>
+        <textarea
+          value={formData.description || ""}
+          onChange={(e) => updateField("description", e.target.value)}
+          placeholder="Describe the certificate and what you learned..."
+          rows={3}
+          className="w-full min-h-[60px] bg-[#0E0E11] border border-white/[0.08] rounded-[8px] p-2 text-[13px] text-white placeholder:text-[#71717A] outline-none focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] transition-all duration-150 resize-y font-[family-name:var(--font-inter)] leading-relaxed"
+        />
+      </div>
+      <div>
+        <label className="block text-[12px] text-[#71717A] mb-1 font-medium">Certificate File</label>
+        <div className="flex items-center gap-3">
+          <button
+            type="button" onClick={() => fileInputRef.current?.click()}
+            className="h-9 px-3 bg-[#3A3A40] text-[#A1A1AA] rounded-[8px] text-[13px] font-medium hover:bg-[#4A4A52] hover:text-white transition-all duration-150 cursor-pointer inline-flex items-center gap-1.5"
+          >
+            <Upload size={13} /> {formData.fileUrl || localFile ? "Replace File" : "Choose File"}
+          </button>
+          <span className="text-[12px] text-[#71717A] truncate max-w-[200px]">
+            {localFile ? localFile.name : formData.fileName || "No file chosen"}
+          </span>
+          <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" className="hidden" aria-hidden="true" tabIndex={-1} onChange={handleFileChange} />
+        </div>
+      </div>
+      <div className="flex gap-2 pt-1">
+        <button onClick={handleSave} className="h-8 px-3 bg-white text-black rounded-[8px] text-[13px] font-medium hover:bg-zinc-200 transition-all duration-150 cursor-pointer inline-flex items-center gap-1.5">
+          <Save size={13} /> Save
+        </button>
+        <button onClick={handleCancel} className="h-8 px-3 bg-[#3A3A40] text-[#A1A1AA] rounded-[8px] text-[13px] font-medium hover:bg-[#4A4A52] hover:text-white transition-all duration-150 cursor-pointer inline-flex items-center gap-1.5">
+          <X size={13} /> Cancel
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <Card>
+      <div className="flex items-center gap-3 mb-6">
+        <Award size={20} className="text-[#3B82F6]" aria-hidden="true" />
+        <h3 className="text-[18px] font-medium text-white">Certificates</h3>
+      </div>
+
+      <div className="space-y-3 mb-4">
+        {entries.length === 0 && !showForm && (
+          <p className="text-[13px] text-[#71717A] text-center py-4">No certificates yet. Click &quot;Add Certificate&quot; to get started.</p>
+        )}
+        {entries.map((entry, index) =>
+          editingIndex === index && showForm ? (
+            renderForm()
+          ) : (
+            <div
+              key={index}
+              className="bg-[#0E0E11] border border-white/[0.05] rounded-[12px] p-4 flex items-start justify-between gap-4 group hover:border-white/[0.1] transition-all duration-150"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-[14px] text-white font-medium">{entry.name}</p>
+                {entry.achievingCause && (
+                  <p className="text-[12px] text-[#3B82F6] mt-0.5">{entry.achievingCause}</p>
+                )}
+                {entry.description && (
+                  <p className="text-[13px] text-[#A1A1AA] mt-1.5 line-clamp-2 leading-relaxed">{entry.description}</p>
+                )}
+                {entry.fileName && (
+                  <p className="text-[12px] text-[#71717A] mt-1.5 inline-flex items-center gap-1">
+                    <FileText size={11} /> {entry.fileName}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                <button
+                  onClick={() => openEdit(index)}
+                  aria-label="Edit certificate"
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-[#71717A] hover:text-[#3B82F6] hover:bg-[#3B82F6]/10 transition-all duration-150 cursor-pointer"
+                >
+                  <Pencil size={14} />
+                </button>
+                <button
+                  onClick={() => handleDelete(index)}
+                  aria-label="Delete certificate"
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-[#71717A] hover:text-[#EF4444] hover:bg-[#EF4444]/10 transition-all duration-150 cursor-pointer"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
+          )
+        )}
+      </div>
+
+      {showForm && editingIndex === null && renderForm()}
+
+      {!showForm && (
+        <button
+          onClick={openAdd}
+          className="w-full h-10 border border-dashed border-white/[0.1] rounded-[10px] text-[13px] text-[#71717A] font-medium hover:text-[#3B82F6] hover:border-[#3B82F6]/30 hover:bg-[#3B82F6]/5 transition-all duration-150 cursor-pointer inline-flex items-center justify-center gap-2"
+        >
+          <Plus size={15} /> Add Certificate
+        </button>
+      )}
     </Card>
   );
 }
@@ -229,6 +726,13 @@ export default function SeekerSettingsPage() {
   const avatarInputRef = useRef(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
 
+  // ── Array section state ──
+  const [experienceEntries, setExperienceEntries] = useState([]);
+  const [educationEntries, setEducationEntries] = useState([]);
+  const [certificatesEntries, setCertificatesEntries] = useState([]);
+  const [cvUrl, setCvUrl] = useState("");
+  const [cvName, setCvName] = useState("");
+
   // ── UI state ──
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -238,39 +742,50 @@ export default function SeekerSettingsPage() {
   const handleChange = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
   // ═══════════════════════════════════════════════════
-  // AVATAR UPLOAD
+  // AVATAR UPLOAD — ImgBB (direct from browser)
   // ═══════════════════════════════════════════════════
   const handleAvatarChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      setMessage({ type: "error", text: "Image must be under 2MB." });
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage({ type: "error", text: "Image must be under 5MB." });
       return;
     }
     setAvatarUploading(true);
     try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const dataUrl = reader.result;
-        const res = await settingsFetch("/users/me", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: dataUrl }),
-        });
-        if (res.ok && isPlainObject(res.data) && !res.data.error) {
-          setAvatarUrl(dataUrl);
-          setMessage({ type: "success", text: "Avatar updated!" });
-        } else {
-          setMessage({ type: "error", text: "Failed to upload avatar." });
-        }
+      // Step 1: Upload directly to ImgBB from browser
+      const formData = new FormData();
+      formData.append("image", file);
+      const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMAGE_UPLOAD_API;
+      const uploadRes = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+        method: "POST",
+        body: formData,
+      });
+      const uploadData = await uploadRes.json();
+
+      if (!uploadData.success || !uploadData.data?.url) {
+        setMessage({ type: "error", text: "Image upload failed. Try again." });
         setAvatarUploading(false);
-      };
-      reader.readAsDataURL(file);
+        e.target.value = "";
+        return;
+      }
+
+      // Step 2: Update user profile with ImgBB URL
+      const res = await settingsFetch("/users/me", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: uploadData.data.url }),
+      });
+      if (res.ok && isPlainObject(res.data) && !res.data.error) {
+        setAvatarUrl(uploadData.data.url);
+        setMessage({ type: "success", text: "Avatar updated!" });
+      } else {
+        setMessage({ type: "error", text: "Failed to save avatar." });
+      }
     } catch {
-      setMessage({ type: "error", text: "Failed to read image file." });
-      setAvatarUploading(false);
+      setMessage({ type: "error", text: "Failed to upload image." });
     }
-    // Reset file input so same file can be re-selected
+    setAvatarUploading(false);
     e.target.value = "";
   };
 
@@ -286,10 +801,16 @@ export default function SeekerSettingsPage() {
       const res = await settingsFetch("/users/me");
       if (res.ok && isPlainObject(res.data) && isPlainObject(res.data.user)) {
         const u = res.data.user;
-        setForm(pickFormFields(u));
+        const picked = pickFormFields(u);
+        setForm(picked);
+        setExperienceEntries(picked.experience || []);
+        setEducationEntries(picked.education || []);
+        setCertificatesEntries(picked.certificates || []);
         setAvatarUrl(u.image || sessionUser?.image || "");
         setResumeUrl(u.resumeUrl || "");
         setResumeName(u.resumeName || "");
+        setCvUrl(u.cvUrl || "");
+        setCvName(u.cvName || "");
       } else {
         const errMsg = res.body?.error || res.body?.message || `Server returned ${res.status}`;
         setLoadError(`Failed to load profile: ${errMsg}`);
@@ -325,6 +846,16 @@ export default function SeekerSettingsPage() {
         linkedin: form.linkedin,
         github: form.github,
         skills: form.skills,
+        experience: experienceEntries,
+        education: educationEntries.map(e => {
+          const { schoolType, school, ...rest } = e;
+          if (schoolType === "college") return { ...rest, collegeName: school };
+          if (schoolType === "university") return { ...rest, universityName: school };
+          return { ...rest, school: school || "" };
+        }),
+        certificates: certificatesEntries,
+        cvUrl,
+        cvName,
       };
 
       const res = await settingsFetch("/users/me", {
@@ -336,10 +867,16 @@ export default function SeekerSettingsPage() {
       if (res.ok && isPlainObject(res.data) && !res.data.error) {
         const updatedUser = res.data.user;
         if (isPlainObject(updatedUser)) {
-          setForm(pickFormFields(updatedUser));
+          const picked = pickFormFields(updatedUser);
+          setForm(picked);
+          setExperienceEntries(picked.experience || []);
+          setEducationEntries(picked.education || []);
+          setCertificatesEntries(picked.certificates || []);
           setAvatarUrl(updatedUser.image || "");
           setResumeUrl(updatedUser.resumeUrl || "");
           setResumeName(updatedUser.resumeName || "");
+          setCvUrl(updatedUser.cvUrl || "");
+          setCvName(updatedUser.cvName || "");
         }
         setMessage({ type: "success", text: "Profile updated successfully!" });
       } else {
@@ -348,6 +885,27 @@ export default function SeekerSettingsPage() {
       }
     } catch {
       setMessage({ type: "error", text: "Network error. Please check your connection and try again." });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** Save just one array section to the backend */
+  const saveSection = async (field, updated) => {
+    setSaving(true);
+    try {
+      const res = await settingsFetch("/users/me", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: updated }),
+      });
+      if (res.ok && isPlainObject(res.data) && !res.data.error) {
+        setMessage({ type: "success", text: `${field.charAt(0).toUpperCase() + field.slice(1)} updated!` });
+      } else {
+        setMessage({ type: "error", text: `Failed to update ${field}.` });
+      }
+    } catch {
+      setMessage({ type: "error", text: `Network error saving ${field}.` });
     } finally {
       setSaving(false);
     }
@@ -392,6 +950,50 @@ export default function SeekerSettingsPage() {
       }
     } catch {
       setMessage({ type: "error", text: "Failed to remove resume." });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCvUpload = async (dataUrl, fileName) => {
+    setSaving(true);
+    try {
+      const res = await settingsFetch("/users/me", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cvUrl: dataUrl, cvName: fileName }),
+      });
+      if (res.ok && isPlainObject(res.data) && !res.data.error) {
+        setCvUrl(dataUrl);
+        setCvName(fileName);
+        setMessage({ type: "success", text: "CV uploaded successfully!" });
+      } else {
+        setMessage({ type: "error", text: "Failed to upload CV." });
+      }
+    } catch {
+      setMessage({ type: "error", text: "Failed to upload CV." });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCvRemove = async () => {
+    setSaving(true);
+    try {
+      const res = await settingsFetch("/users/me", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cvUrl: "", cvName: "" }),
+      });
+      if (res.ok && isPlainObject(res.data) && !res.data.error) {
+        setCvUrl("");
+        setCvName("");
+        setMessage({ type: "success", text: "CV removed." });
+      } else {
+        setMessage({ type: "error", text: "Failed to remove CV." });
+      }
+    } catch {
+      setMessage({ type: "error", text: "Failed to remove CV." });
     } finally {
       setSaving(false);
     }
@@ -461,8 +1063,8 @@ export default function SeekerSettingsPage() {
               >
                 <Camera size={14} aria-hidden="true" /> {avatarUploading ? "Uploading..." : "Change Avatar"}
               </button>
-              <input ref={avatarInputRef} type="file" accept="image/png,image/jpeg,image/gif" className="hidden" aria-hidden="true" tabIndex={-1} onChange={handleAvatarChange} />
-              <p className="text-[12px] text-[#71717A] mt-2">JPG, PNG or GIF. Max 2MB.</p>
+              <input ref={avatarInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" aria-hidden="true" tabIndex={-1} onChange={handleAvatarChange} />
+              <p className="text-[12px] text-[#71717A] mt-2">JPG, PNG, GIF or WebP. Max 5MB.</p>
             </div>
           </div>
 
@@ -483,12 +1085,26 @@ export default function SeekerSettingsPage() {
           </div>
         </Card>
 
-        <FileUploadCard
-          resumeName={resumeName}
-          resumeUrl={resumeUrl}
-          onUpload={handleResumeUpload}
-          onRemove={handleResumeRemove}
-        />
+        <div className="space-y-6">
+          <FileUploadCard
+            resumeName={resumeName}
+            resumeUrl={resumeUrl}
+            onUpload={handleResumeUpload}
+            onRemove={handleResumeRemove}
+            title="Resume"
+            description="Upload your resume to enhance your profile visibility."
+            accept=".pdf,.doc,.docx"
+          />
+          <FileUploadCard
+            resumeName={cvName}
+            resumeUrl={cvUrl}
+            onUpload={handleCvUpload}
+            onRemove={handleCvRemove}
+            title="CV"
+            description="Upload your CV for additional profile visibility."
+            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+          />
+        </div>
       </div>
 
       {/* ── Professional Details ── */}
@@ -544,6 +1160,87 @@ export default function SeekerSettingsPage() {
           </PrimaryButton>
         </div>
       </Card>
+
+      {/* ═══════════════════════════════════════════════════
+         EXPERIENCE SECTION
+         ═══════════════════════════════════════════════════ */}
+      <SectionEditor
+        title="Experience"
+        icon={Briefcase}
+        entries={experienceEntries}
+        setEntries={setExperienceEntries}
+        onSave={(updated) => saveSection("experience", updated)}
+        emptyEntry={{ company: "", title: "", startDate: "", endDate: "", current: false, description: "" }}
+        fieldConfigs={[
+          { field: "company", label: "Company Name", placeholder: "e.g. Google" },
+          { field: "title", label: "Job Title", placeholder: "e.g. Senior Software Engineer" },
+          { field: "startDate", label: "Start Date", type: "month", placeholder: "" },
+          { field: "current", label: "Currently working here", type: "checkbox" },
+          { field: "endDate", label: "End Date", type: "month", placeholder: "", dependsOn: "current" },
+          { field: "description", label: "Description", type: "textarea", placeholder: "Describe your responsibilities and achievements..." },
+        ]}
+        renderEntry={(entry) => (
+          <>
+            <p className="text-[14px] text-white font-medium">{entry.title}{entry.company ? ` at ${entry.company}` : ""}</p>
+            <p className="text-[12px] text-[#71717A] mt-0.5">
+              {formatDate(entry.startDate)} — {entry.current ? "Present" : formatDate(entry.endDate)}
+            </p>
+            {entry.description && (
+              <p className="text-[13px] text-[#A1A1AA] mt-1.5 line-clamp-2 leading-relaxed">{entry.description}</p>
+            )}
+          </>
+        )}
+      />
+
+      {/* ═══════════════════════════════════════════════════
+         EDUCATION SECTION
+         ═══════════════════════════════════════════════════ */}
+      <SectionEditor
+        title="Education"
+        icon={GraduationCap}
+        entries={educationEntries}
+        setEntries={setEducationEntries}
+        onSave={(updated) => saveSection("education", updated.map(e => {
+          const { schoolType, school, ...rest } = e;
+          if (schoolType === "college") return { ...rest, collegeName: school };
+          if (schoolType === "university") return { ...rest, universityName: school };
+          return { ...rest, school: school || "" };
+        }))}
+        emptyEntry={{ schoolType: "", school: "", degree: "", field: "", startDate: "", endDate: "", description: "" }}
+        fieldConfigs={[
+          { field: "schoolType", label: "Institution Type", type: "select", options: [
+            { value: "", label: "Select College or University" },
+            { value: "college", label: "College" },
+            { value: "university", label: "University" },
+          ]},
+          { field: "school", label: "College / University Name", placeholder: "e.g. MIT, Dhaka University" },
+          { field: "degree", label: "Degree", placeholder: "e.g. Bachelor of Science" },
+          { field: "field", label: "Field of Study", placeholder: "e.g. Computer Science" },
+          { field: "startDate", label: "Start Date", type: "month", placeholder: "" },
+          { field: "endDate", label: "End Date", type: "month", placeholder: "" },
+          { field: "description", label: "Description", type: "textarea", placeholder: "Activities, achievements, coursework..." },
+        ]}
+        renderEntry={(entry) => (
+          <>
+            <p className="text-[14px] text-white font-medium">{entry.degree}{entry.field ? ` in ${entry.field}` : ""}</p>
+            <p className="text-[12px] text-[#71717A] mt-0.5">
+              {entry.schoolType === "college" ? "College" : entry.schoolType === "university" ? "University" : ""}{entry.school ? ` · ${entry.school}` : ""}{entry.startDate || entry.endDate ? ` · ${formatDate(entry.startDate)} — ${formatDate(entry.endDate)}` : ""}
+            </p>
+            {entry.description && (
+              <p className="text-[13px] text-[#A1A1AA] mt-1.5 line-clamp-2 leading-relaxed">{entry.description}</p>
+            )}
+          </>
+        )}
+      />
+
+      {/* ═══════════════════════════════════════════════════
+         CERTIFICATES SECTION
+         ═══════════════════════════════════════════════════ */}
+      <CertificateEditor
+        entries={certificatesEntries}
+        setEntries={setCertificatesEntries}
+        onSave={(updated) => saveSection("certificates", updated)}
+      />
     </div>
   );
 }

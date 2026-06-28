@@ -94,20 +94,15 @@ function Particles() {
   );
 }
 
-/* ─── Trending tags ─── */
-
-const TRENDING_TAGS = [
-  "Product Designer",
-  "AI Engineering",
-  "Dev-ops Engineer",
-];
-
 /* ─── Hero ─── */
 
 export default function Hero() {
   const [locationOpen, setLocationOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [trendingJobs, setTrendingJobs] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [companyNames, setCompanyNames] = useState([]);
   const router = useRouter();
 
   /* Inject gradient keyframe on client only — avoids styled-jsx hydration mismatch */
@@ -120,21 +115,49 @@ export default function Hero() {
     document.head.appendChild(style);
   }, []);
 
-  const LOCATIONS = [
-    "New York, NY",
-    "San Francisco, CA",
-    "Los Angeles, CA",
-    "Chicago, IL",
-    "Austin, TX",
-    "Seattle, WA",
-    "Remote",
-  ];
+  /* Fetch trending jobs (3 most applied), locations, and company names */
+  useEffect(() => {
+    fetch("/api/backend/trending-jobs")
+      .then((res) => res.json())
+      .then((data) => {
+        const jobs = Array.isArray(data) ? data : data?.jobs || [];
+        setTrendingJobs(jobs.slice(0, 3));
+      })
+      .catch(() => {});
 
-  /* Navigate to /jobs with search + location filters */
+    fetch("/api/backend/public/trending-locations")
+      .then((res) => res.json())
+      .then((data) => {
+        const locs = Array.isArray(data) ? data : data?.locations || [];
+        setLocations(locs);
+      })
+      .catch(() => {});
+
+    fetch("/api/backend/public/companies")
+      .then((res) => res.json())
+      .then((data) => {
+        const companies = Array.isArray(data) ? data : data?.companies || [];
+        const names = companies.map((c) => c.name || c.companyName || "").filter(Boolean);
+        setCompanyNames(names);
+      })
+      .catch(() => {});
+  }, []);
+
+  /* Navigate to /jobs with search + location filters (smart search) */
   const handleSearch = () => {
+    const input = searchInput.trim();
+    if (input) {
+      const isCompany = companyNames.some(
+        (name) => name.toLowerCase() === input.toLowerCase()
+      );
+      if (isCompany) {
+        router.push(`/companies?search=${encodeURIComponent(input)}`);
+        return;
+      }
+    }
     const params = new URLSearchParams();
-    if (searchInput.trim()) {
-      params.set("search", searchInput.trim());
+    if (input) {
+      params.set("search", input);
     }
     if (selectedLocation && selectedLocation !== "Remote") {
       params.set("location", selectedLocation);
@@ -149,11 +172,10 @@ export default function Hero() {
     if (e.key === "Enter") handleSearch();
   };
 
-  /* Navigate to /jobs with trending tag as search */
-  const handleTagClick = (tag) => {
-    const params = new URLSearchParams();
-    params.set("search", tag);
-    router.push(`/jobs?${params.toString()}`);
+  /* Navigate to job detail page */
+  const handleTagClick = (job) => {
+    const jobId = job._id?.$oid || job._id;
+    if (jobId) router.push(`/jobs/${jobId}`);
   };
 
   return (
@@ -290,7 +312,7 @@ export default function Hero() {
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Job title, skill or company"
+                  placeholder="Job title or company name"
                   className="bg-transparent text-white placeholder-[#888888] text-[14px] w-full outline-none"
                 />
               </div>
@@ -325,7 +347,7 @@ export default function Hero() {
                       selectedLocation ? "text-white" : "text-[#888888]"
                     }
                   >
-                    {selectedLocation || "Location or Remote"}
+                    {selectedLocation || "Location"}
                   </span>
                   <svg
                     className={`w-4 h-4 text-[#888888] transition-transform duration-200 ${
@@ -349,7 +371,7 @@ export default function Hero() {
                     animate={{ opacity: 1, y: 0 }}
                     className="absolute top-full left-0 right-0 mt-2 bg-[#1a1a2e] border border-white/[0.12] rounded-lg shadow-2xl shadow-black/50 overflow-hidden z-50"
                   >
-                    {LOCATIONS.map((loc) => (
+                    {locations.map((loc) => (
                       <button
                         key={loc}
                         onClick={() => {
@@ -392,7 +414,7 @@ export default function Hero() {
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Job title, skill or company"
+                  placeholder="Job title or company name"
                   className="bg-transparent text-white placeholder-[#888888] text-[14px] w-full outline-none"
                 />
               </motion.div>
@@ -423,7 +445,7 @@ export default function Hero() {
                   value={selectedLocation}
                   onChange={(e) => setSelectedLocation(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Location or Remote"
+                  placeholder="Location"
                   className="bg-transparent text-white placeholder-[#888888] text-[14px] w-full outline-none"
                 />
               </motion.div>
@@ -450,10 +472,10 @@ export default function Hero() {
             <span className="text-[#888888] text-[13px] font-medium mr-1 shrink-0">
               Trending:
             </span>
-            {TRENDING_TAGS.map((tag, i) => (
+            {trendingJobs.map((job, i) => (
               <motion.button
-                key={tag}
-                onClick={() => handleTagClick(tag)}
+                key={job._id?.$oid || job._id}
+                onClick={() => handleTagClick(job)}
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{
@@ -470,7 +492,7 @@ export default function Hero() {
                 whileTap={{ scale: 0.95 }}
                 className="bg-[#1a1a2e] border border-white/[0.08] text-[#CCCCCC] text-[12px] px-3.5 py-1.5 rounded-full cursor-pointer shrink-0"
               >
-                {tag}
+                {job.jobTitle || job.title}
               </motion.button>
             ))}
           </motion.div>

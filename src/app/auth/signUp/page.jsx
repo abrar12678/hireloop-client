@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card } from "@heroui/react";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -12,7 +13,6 @@ import Eye from "@gravity-ui/icons/Eye";
 import EyeSlash from "@gravity-ui/icons/EyeSlash";
 import ArrowRight from "@gravity-ui/icons/ArrowRight";
 import { authClient } from "@/lib/auth-client";
-import { Description, Label, Radio, RadioGroup } from "@heroui/react";
 
 const inputBase =
   "w-full rounded-xl border border-white/[0.08] bg-[#141419] text-[14px] leading-5 text-white placeholder:text-[#6B7280] outline-none transition-colors focus:border-[#5C53FE]/50 focus:ring-1 focus:ring-[#5C53FE]/20";
@@ -117,6 +117,8 @@ const PasswordField = ({
 };
 
 const SignUpPage = () => {
+  const searchParams = useSearchParams();
+  const rawRedirect = searchParams.get("redirect") || "";
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState("seeker");
 
@@ -141,16 +143,22 @@ const SignUpPage = () => {
     const plan = role === "seeker" ? "seeker_free" : "recruiter_free";
 
     try {
+      // Step 1: Sign up WITHOUT role/plan (admin plugin blocks them)
       const { data, error: signUpError } = await authClient.signUp.email({
         email: user.email,
         password: user.password,
         name: user.name,
         remember: true,
-        role: user.role,
-        plan: plan,
       });
 
       if (data) {
+        // Step 2: Set role/plan directly in MongoDB
+        await fetch("/api/set-user-role", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: user.email, role, plan }),
+        });
+
         toast.success("Account created successfully!", {
           position: "top-center",
           autoClose: 2000,
@@ -158,13 +166,20 @@ const SignUpPage = () => {
           style: { background: "#1a1a2e", color: "#fff" },
         });
 
-        /* After sign up, fetch session to get role, then redirect.
-           Use window.location.replace so the auth page is NEVER in browser history. */
-        const { data: sessionData } = await authClient.getSession();
-        const userRole = sessionData?.session?.user?.role || sessionData?.user?.role || role;
+        // Role-based redirect after signup
+        const targetPath = rawRedirect;
+        const targetForSeeker = targetPath.startsWith("/dashboard/seeker/");
+        const targetForRecruiter = targetPath.startsWith("/dashboard/recruiter/");
+        const roleMismatch =
+          (targetForSeeker && role !== "seeker") ||
+          (targetForRecruiter && role !== "recruiter");
 
         setTimeout(() => {
-          window.location.replace(getDashboardPath(userRole));
+          if (targetPath && !roleMismatch) {
+            window.location.href = targetPath;
+          } else {
+            window.location.replace(getDashboardPath(role));
+          }
         }, 1200);
       }
 
@@ -292,31 +307,38 @@ const SignUpPage = () => {
             />
 
             {/* Role Selection */}
-            <div className="flex flex-col gap-4">
-              <Label>Role</Label>
-              <RadioGroup
-                defaultValue="seeker"
-                name="role"
-                orientation="horizontal"
-                onValueChange={(value) => setRole(value)}
-              >
-                <Radio value="seeker">
-                  <Radio.Control>
-                    <Radio.Indicator />
-                  </Radio.Control>
-                  <Radio.Content>
-                    <Label>Job Seeker</Label>
-                  </Radio.Content>
-                </Radio>
-                <Radio value="recruiter">
-                  <Radio.Control>
-                    <Radio.Indicator />
-                  </Radio.Control>
-                  <Radio.Content>
-                    <Label>Recruiter</Label>
-                  </Radio.Content>
-                </Radio>
-              </RadioGroup>
+            <div className="flex flex-col gap-2">
+              <span className="text-[13px] text-[#9CA3AF]">Role</span>
+              <div className="flex gap-6">
+                <label
+                  className="flex items-center gap-2 cursor-pointer select-none"
+                  onClick={() => setRole("seeker")}
+                >
+                  <input
+                    type="radio"
+                    name="role"
+                    value="seeker"
+                    checked={role === "seeker"}
+                    readOnly
+                    className="w-4 h-4 accent-[#5C53FE]"
+                  />
+                  <span className="text-[14px] text-white">Job Seeker</span>
+                </label>
+                <label
+                  className="flex items-center gap-2 cursor-pointer select-none"
+                  onClick={() => setRole("recruiter")}
+                >
+                  <input
+                    type="radio"
+                    name="role"
+                    value="recruiter"
+                    checked={role === "recruiter"}
+                    readOnly
+                    className="w-4 h-4 accent-[#5C53FE]"
+                  />
+                  <span className="text-[14px] text-white">Recruiter</span>
+                </label>
+              </div>
             </div>
 
             {/* Terms Checkbox */}
@@ -411,7 +433,7 @@ const SignUpPage = () => {
           <p className="text-center text-[12px] sm:text-[13px] text-[#6B7280] pb-5 sm:pb-6">
             Already have an account?{" "}
             <Link
-              href="/auth/signIn"
+              href={`/auth/signIn${rawRedirect ? `?redirect=${encodeURIComponent(rawRedirect)}` : ""}`}
               className="font-medium text-[#5C53FE] transition-colors hover:text-[#8B5CF6] hover:underline underline-offset-2"
             >
               Log in

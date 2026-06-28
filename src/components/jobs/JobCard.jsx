@@ -3,7 +3,7 @@
 import React, { useState, useCallback } from "react";
 import { motion } from "motion/react";
 import { MapPin, CircleDollar } from "@gravity-ui/icons";
-import { Bookmark } from "lucide-react";
+import { Bookmark, BadgeCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
@@ -151,9 +151,14 @@ export default function JobCard({ job, basePath = "/jobs", savedJobIds, onSavedC
               <h3 className="text-base font-bold text-white truncate group-hover:text-purple-300 transition-colors">
                 {job.jobTitle}
               </h3>
-              <p className="text-sm text-[#CCCCCC] mt-0.5 truncate">
-                {job.companyName || "Confidential"}
-              </p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm text-[#CCCCCC] mt-0.5 truncate">
+                  {job.companyName || "Confidential"}
+                </p>
+                {job.companyVerified && (
+                  <BadgeCheck className="w-3.5 h-3.5 text-[#3B82F6] flex-shrink-0" title="Verified Company" />
+                )}
+              </div>
             </Link>
 
             {/* Bookmark — Lucide icon supports fill prop natively */}

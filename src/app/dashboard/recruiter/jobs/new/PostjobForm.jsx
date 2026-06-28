@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Form,
   Fieldset,
@@ -16,10 +16,15 @@ import {
   toast,
 } from "@heroui/react";
 import { Briefcase, Globe } from "@gravity-ui/icons";
+import { X } from "lucide-react";
 import { createJob } from "@/lib/action/jobs";
-import { redirect } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { clientFetch } from "@/lib/core/client";
+
+const FALLBACK_CATEGORIES = ["Technology", "Design", "Marketing", "Sales"];
 
 export default function PostJobForm({ company }) {
+  const router = useRouter();
   // Mock configuration for recruiter's authenticated state
   // console.log("PostJobForm received company prop:", company);
   // const [company] = useState({
@@ -30,6 +35,63 @@ export default function PostJobForm({ company }) {
 
   const [isRemote, setIsRemote] = useState(false);
   const [errors, setErrors] = useState({});
+  const [categories, setCategories] = useState([]);
+  const [allSkills, setAllSkills] = useState([]);
+  const [selectedSkills, setSelectedSkills] = useState([]);
+  const [skillInput, setSkillInput] = useState("");
+  const [skillSuggestions, setSkillSuggestions] = useState([]);
+  const [showSkillDropdown, setShowSkillDropdown] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [catData, skillData] = await Promise.all([
+          clientFetch("/api/categories"),
+          clientFetch("/api/skills"),
+        ]);
+        setCategories(Array.isArray(catData) && catData.length > 0 ? catData : FALLBACK_CATEGORIES.map((name) => ({ name })));
+        setAllSkills(Array.isArray(skillData) ? skillData.map((s) => s.name || s).filter(Boolean) : []);
+      } catch {
+        setCategories(FALLBACK_CATEGORIES.map((name) => ({ name })));
+      }
+    };
+    fetchData();
+  }, []);
+
+  const handleSkillInputChange = (value) => {
+    setSkillInput(value);
+    if (value.trim().length > 0) {
+      const filtered = allSkills
+        .filter((s) => s.toLowerCase().includes(value.toLowerCase()) && !selectedSkills.includes(s))
+        .slice(0, 8);
+      setSkillSuggestions(filtered);
+      setShowSkillDropdown(filtered.length > 0);
+    } else {
+      setSkillSuggestions([]);
+      setShowSkillDropdown(false);
+    }
+  };
+
+  const addSkill = (skill) => {
+    const trimmed = skill.trim();
+    if (trimmed && !selectedSkills.includes(trimmed)) {
+      setSelectedSkills((prev) => [...prev, trimmed]);
+    }
+    setSkillInput("");
+    setSkillSuggestions([]);
+    setShowSkillDropdown(false);
+  };
+
+  const removeSkill = (skill) => {
+    setSelectedSkills((prev) => prev.filter((s) => s !== skill));
+  };
+
+  const handleSkillKeyDown = (e) => {
+    if (e.key === "Enter" && skillInput.trim()) {
+      e.preventDefault();
+      addSkill(skillInput);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -64,6 +126,7 @@ export default function PostJobForm({ company }) {
 
     const payload = {
       ...data,
+      skills: selectedSkills.join(", "),
       isRemote,
       companyId: company._id,
       companyName: company.name,
@@ -74,11 +137,12 @@ export default function PostJobForm({ company }) {
 
     const res = await createJob(payload);
 
-    if (res.insertedId) {
+    if (res && res.insertedId) {
       toast.success("Job posted successfully!");
       e.target.reset();
       setIsRemote(false);
-      redirect("/dashboard/recruiter/jobs");
+      setSelectedSkills([]);
+      router.push("/dashboard/recruiter/jobs");
     }
   };
 
@@ -176,34 +240,19 @@ export default function PostJobForm({ company }) {
                   )}
                   <Select.Popover className={popoverClasses}>
                     <ListBox className="outline-none">
-                      <ListBox.Item
-                        id="technology"
-                        className={listItemClasses}
-                        textValue="Technology"
-                      >
-                        Technology
-                      </ListBox.Item>
-                      <ListBox.Item
-                        id="design"
-                        className={listItemClasses}
-                        textValue="Design"
-                      >
-                        Design
-                      </ListBox.Item>
-                      <ListBox.Item
-                        id="marketing"
-                        className={listItemClasses}
-                        textValue="Marketing"
-                      >
-                        Marketing
-                      </ListBox.Item>
-                      <ListBox.Item
-                        id="sales"
-                        className={listItemClasses}
-                        textValue="Sales"
-                      >
-                        Sales
-                      </ListBox.Item>
+                      {categories.map((cat) => {
+                        const catId = (cat._id?.$oid || cat._id || cat.name).toLowerCase().replace(/[^a-z0-9]+/g, "-");
+                        return (
+                          <ListBox.Item
+                            key={catId}
+                            id={catId}
+                            className={listItemClasses}
+                            textValue={cat.name}
+                          >
+                            {cat.name}
+                          </ListBox.Item>
+                        );
+                      })}
                     </ListBox>
                   </Select.Popover>
                 </Select>
@@ -457,12 +506,63 @@ export default function PostJobForm({ company }) {
               </TextField>
             </Fieldset>
 
+            {/* SECTION 3: Skills (Dynamic) */}
+            <Fieldset className="space-y-4 w-full">
+              <legend className="text-lg font-medium text-zinc-300 border-b border-zinc-900 w-full pb-2 mb-2">
+                Required Skills
+              </legend>
+              <div className="relative">
+                <div className="flex flex-wrap gap-2 mb-2 min-h-[36px]">
+                  {selectedSkills.map((skill) => (
+                    <span
+                      key={skill}
+                      className="inline-flex items-center gap-1.5 bg-[#3B82F6]/15 text-[#3B82F6] border border-[#3B82F6]/25 text-xs font-medium px-2.5 py-1.5 rounded-lg"
+                    >
+                      {skill}
+                      <button
+                        type="button"
+                        onClick={() => removeSkill(skill)}
+                        className="hover:text-white transition-colors cursor-pointer"
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  value={skillInput}
+                  onChange={(e) => handleSkillInputChange(e.target.value)}
+                  onKeyDown={handleSkillKeyDown}
+                  onFocus={() => { if (skillInput.trim()) handleSkillInputChange(skillInput); }}
+                  onBlur={() => setTimeout(() => setShowSkillDropdown(false), 200)}
+                  placeholder={selectedSkills.length === 0 ? "Type to search skills or press Enter to add..." : "Add more skills..."}
+                  className="w-full text-white bg-[#1c1c1e] border border-zinc-800 hover:bg-[#242426] focus:border-zinc-600 rounded-lg h-12 px-3 text-sm placeholder:text-zinc-600 outline-none transition-all"
+                />
+                {showSkillDropdown && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-[#1c1c1e] border border-zinc-700 rounded-lg shadow-xl z-20 max-h-48 overflow-y-auto">
+                    {skillSuggestions.map((skill) => (
+                      <button
+                        key={skill}
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); addSkill(skill); }}
+                        className="w-full text-left px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors cursor-pointer"
+                      >
+                        {skill}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Fieldset>
+
             {/* Form Actions */}
             <div className="flex justify-end gap-3 pt-4 border-t border-zinc-800 w-full">
               <Button
                 type="button"
                 variant="bordered"
                 className="border-zinc-800 text-zinc-300 hover:bg-zinc-900 rounded-lg px-6 font-medium h-11"
+                onPress={() => router.push("/dashboard/recruiter/jobs")}
               >
                 Cancel
               </Button>

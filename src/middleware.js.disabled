@@ -1,0 +1,27 @@
+import { NextResponse } from "next/server";
+
+export function middleware(request) {
+  const { pathname } = request.nextUrl;
+
+  // Only check landing page and auth pages
+  const publicPaths = ["/", "/auth/signIn", "/auth/signUp", "/auth/forgot-password"];
+  const isPublicPath = publicPaths.includes(pathname);
+
+  if (!isPublicPath) return NextResponse.next();
+
+  // Check for better-auth session cookie
+  const sessionToken = request.cookies.get("better-auth.session_token");
+
+  if (sessionToken && sessionToken.value) {
+    // User has a session cookie — redirect to dashboard root
+    // which will then redirect to the correct role-based dashboard
+    const dashboardUrl = new URL("/dashboard", request.url);
+    return NextResponse.redirect(dashboardUrl);
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ["/", "/auth/signIn", "/auth/signUp", "/auth/forgot-password"],
+};

@@ -32,6 +32,16 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Inject nav glow keyframe
+  useEffect(() => {
+    const id = "nav-glow-keyframe";
+    if (document.getElementById(id)) return;
+    const style = document.createElement("style");
+    style.id = id;
+    style.textContent = `@keyframes navGlow { 0% { transform: translateX(-50%); } 100% { transform: translateX(0%); } }`;
+    document.head.appendChild(style);
+  }, []);
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -86,10 +96,25 @@ export default function Navbar() {
                 >
                   <Link
                     href={link.href}
-                    className="relative text-[#CCCCCC] text-[14px] font-medium hover:text-white transition-colors duration-200 py-1 px-3"
+                    className={`relative text-[14px] font-medium py-1 px-3 transition-colors duration-200 ${
+                      pathname === link.href
+                        ? "text-white"
+                        : "text-[#CCCCCC] hover:text-white"
+                    }`
+                  }
                   >
                     {link.label}
-                    <span className="absolute -bottom-0.5 left-3 right-3 h-[2px] bg-[#6B63FF] w-0 hover:w-full transition-all duration-250" />
+                    {pathname === link.href && (
+                      <span className="absolute -bottom-0.5 left-0 right-0 h-[2px] overflow-hidden rounded-full">
+                        <span
+                          className="block h-full w-[200%] rounded-full"
+                          style={{
+                            background: "linear-gradient(90deg, transparent, #556EFF 25%, #8B9FFF 50%, #556EFF 75%, transparent)",
+                            animation: "navGlow 2s ease-in-out infinite",
+                          }}
+                        />
+                      </span>
+                    )}
                   </Link>
                 </motion.div>
               ))}
@@ -226,7 +251,12 @@ export default function Navbar() {
                     key={link.label}
                     href={link.href}
                     onClick={() => setMobileOpen(false)}
-                    className="block text-[#CCCCCC] hover:text-white text-[15px] font-medium px-3 py-3 rounded-lg hover:bg-white/[0.05] transition-colors cursor-pointer"
+                    className={`block text-[15px] font-medium px-3 py-3 rounded-lg transition-colors cursor-pointer ${
+                      pathname === link.href
+                        ? "text-white bg-white/[0.08]"
+                        : "text-[#CCCCCC] hover:text-white hover:bg-white/[0.05]"
+                    }`
+                  }
                   >
                     {link.label}
                   </Link>

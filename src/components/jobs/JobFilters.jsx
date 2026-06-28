@@ -6,18 +6,40 @@ import { ChevronDown } from "@gravity-ui/icons";
 
 const JOB_TYPE_OPTIONS = [
   { id: "all", label: "All Types", count: null },
-  { id: "full-time", label: "Full-time", count: "1.2k" },
-  { id: "contract", label: "Contract", count: "432" },
+  { id: "full-time", label: "Full-time", count: null },
+  { id: "contract", label: "Contract", count: null },
   { id: "part-time", label: "Part-time", count: null },
-  { id: "freelance", label: "Freelance", count: "158" },
+  { id: "freelance", label: "Freelance", count: null },
+  { id: "internship", label: "Internship", count: null },
 ];
 
 const CATEGORY_OPTIONS = [
   { id: "all", label: "All Categories", count: null },
-  { id: "engineering", label: "Engineering", count: "486" },
-  { id: "design", label: "Design", count: "215" },
-  { id: "product", label: "Product", count: "172" },
-  { id: "marketing", label: "Marketing", count: "98" },
+  { id: "technology", label: "Technology", count: null },
+  { id: "design", label: "Design", count: null },
+  { id: "marketing", label: "Marketing", count: null },
+  { id: "sales", label: "Sales", count: null },
+  { id: "finance", label: "Finance", count: null },
+  { id: "engineering", label: "Engineering", count: null },
+  { id: "product", label: "Product", count: null },
+];
+
+const EXPERIENCE_OPTIONS = [
+  { id: "all", label: "All Levels" },
+  { id: "entry-level", label: "Entry Level" },
+  { id: "mid-level", label: "Mid Level" },
+  { id: "senior", label: "Senior" },
+  { id: "lead", label: "Lead / Principal" },
+  { id: "manager", label: "Manager" },
+];
+
+const SALARY_RANGES = [
+  { id: "all", label: "Any Salary", min: "", max: "" },
+  { id: "0-30k", label: "Under $30K", min: "0", max: "30000" },
+  { id: "30-60k", label: "$30K – $60K", min: "30000", max: "60000" },
+  { id: "60-100k", label: "$60K – $100K", min: "60000", max: "100000" },
+  { id: "100-150k", label: "$100K – $150K", min: "100000", max: "150000" },
+  { id: "150k+", label: "$150K+", min: "150000", max: "" },
 ];
 
 function FilterSection({ title, options, selected, onToggle, defaultOpen = true }) {
@@ -93,6 +115,10 @@ export default function JobFilters({
   setSelectedCategory,
   isRemoteOnly,
   setIsRemoteOnly,
+  selectedExperience = "all",
+  setSelectedExperience = () => {},
+  selectedSalaryRange = "all",
+  setSelectedSalaryRange = () => {},
 }) {
   return (
     <aside className="w-full shrink-0">
@@ -115,6 +141,22 @@ export default function JobFilters({
           selected={selectedCategory}
           onToggle={setSelectedCategory}
           defaultOpen={true}
+        />
+
+        <FilterSection
+          title="Experience Level"
+          options={EXPERIENCE_OPTIONS}
+          selected={selectedExperience}
+          onToggle={setSelectedExperience}
+          defaultOpen={false}
+        />
+
+        <FilterSection
+          title="Salary Range"
+          options={SALARY_RANGES}
+          selected={selectedSalaryRange}
+          onToggle={setSelectedSalaryRange}
+          defaultOpen={false}
         />
 
         {/* Remote Toggle */}

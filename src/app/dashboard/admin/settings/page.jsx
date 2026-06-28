@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useSession } from "@/lib/auth-client";
+import { protectedClientFetch, clientMutation } from "@/lib/core/client";
 import {
   User,
   Save,
@@ -109,8 +110,8 @@ export default function AdminSettingsPage() {
   const avatarInputRef = useRef(null);
 
   const [form, setForm] = useState({
-    name: user?.name || "",
-    email: user?.email || "",
+    name: "",
+    email: "",
   });
 
   const [notifications, setNotifications] = useState({
@@ -124,6 +125,33 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
 
+  /* ── Fetch user profile data from DB on mount ── */
+  useEffect(() => {
+    if (isPending || !user) return;
+    // Initialize from session immediately for fast render
+    setForm({
+      name: user.name || "",
+      email: user.email || "",
+    });
+    // Then fetch full user data from DB to get any extra fields
+    protectedClientFetch("/api/users/me").then((data) => {
+      if (data && typeof data === "object" && !Array.isArray(data)) {
+        setForm({
+          name: data.name || user.name || "",
+          email: data.email || user.email || "",
+        });
+        if (data.notifications && typeof data.notifications === "object") {
+          setNotifications((prev) => ({
+            ...prev,
+            ...data.notifications,
+          }));
+        }
+      }
+    }).catch(() => {
+      // Keep session data if fetch fails
+    });
+  }, [isPending, user]);
+
   const handleChange = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
   const handleNotifChange = (key, value) => setNotifications((prev) => ({ ...prev, [key]: value }));
 
@@ -131,14 +159,16 @@ export default function AdminSettingsPage() {
     setSaving(true);
     setMessage(null);
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
-      const res = await fetch(`${baseUrl}/api/users/me`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: form.name, email: form.email }),
-        credentials: "include",
-      });
-      setMessage(res.ok ? { type: "success", text: "Profile updated successfully!" } : { type: "error", text: "Failed to update profile." });
+      const result = await clientMutation("/api/users/me", {
+        name: form.name,
+        email: form.email,
+        notifications,
+      }, "PUT");
+      if (result) {
+        setMessage({ type: "success", text: "Profile updated successfully!" });
+      } else {
+        setMessage({ type: "error", text: "Failed to update profile." });
+      }
     } catch {
       setMessage({ type: "error", text: "An error occurred. Please try again." });
     } finally {
@@ -172,8 +202,8 @@ export default function AdminSettingsPage() {
         <h3 className="text-[18px] font-medium text-white mb-6">Profile Information</h3>
         <div className="flex items-center gap-6 mb-6">
           <div className="w-16 h-16 rounded-full bg-[#3A3A40] border border-white/[0.08] flex items-center justify-center text-white text-lg font-semibold shrink-0 overflow-hidden"
-            role="img" aria-label={`Profile avatar of ${user?.name || "Admin"}`}>
-            {user?.image ? <img src={user.image} alt="" className="w-full h-full object-cover" /> : getInitials(user?.name)}
+            role="img" aria-label={`Profile avatar of ${form.name || "Admin"}`}>
+            {user?.image ? <img src={user.image} alt="" className="w-full h-full object-cover" /> : getInitials(form.name || user?.name)}
           </div>
           <div>
             <button onClick={() => avatarInputRef.current?.click()} aria-label="Change profile avatar"
@@ -198,7 +228,7 @@ export default function AdminSettingsPage() {
       {/* Notifications */}
       <Card>
         <div className="flex items-center gap-3 mb-5">
-          <div className="w-9 h-9 rounded-[10px] bg-[#3A3A40] flex items-center justify-center"><Bell size={18} aria-hidden="true" className="text-[#A1A1AA]" /></div>
+          <div className="w-9 h-9 rounded-[10px] bg-[#F59E0B]/15 flex items-center justify-center"><Bell size={18} aria-hidden="true" className="text-[#F59E0B]" /></div>
           <div>
             <h3 className="text-[18px] font-medium text-white">Notification Preferences</h3>
             <p className="text-[13px] text-[#71717A] mt-0.5">Control platform alert notifications.</p>
